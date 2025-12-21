@@ -3,171 +3,183 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Workout Detector (Portrait)</title>
+    <title>Workout Detector (Portrait, Fit Camera)</title>
+
     <style>
       :root { color-scheme: dark; }
-      body {
-        margin: 0;
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-        background: #0b0f14;
-        color: #e9eef5;
+
+      body{
+        margin:0;
+        font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+        background:#0b0f14;
+        color:#e9eef5;
       }
 
-      .wrap { min-height: 100vh; display: grid; grid-template-rows: auto 1fr; }
+      .wrap{min-height:100vh;display:grid;grid-template-rows:auto 1fr;}
 
-      header {
-        padding: 12px 14px;
-        border-bottom: 1px solid rgba(255,255,255,0.08);
-        background: rgba(255,255,255,0.03);
-        backdrop-filter: blur(10px);
-        display: grid;
-        gap: 10px;
+      header{
+        padding:12px 14px;
+        border-bottom:1px solid rgba(255,255,255,.08);
+        background:rgba(255,255,255,.03);
+        backdrop-filter:blur(10px);
+        display:grid;
+        gap:10px;
       }
 
-      .topRow {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 12px;
+      .topRow{
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:12px;
       }
 
-      .left {
-        display: grid;
-        gap: 4px;
-      }
-      .title { font-weight: 700; font-size: 14px; }
-      .subtitle { opacity: 0.8; font-size: 12px; }
+      .left{display:grid;gap:4px;min-width:0;}
+      .title{font-weight:700;font-size:14px;}
+      .subtitle{opacity:.8;font-size:12px;}
 
-      .pills {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-      }
-      .pill {
-        padding: 8px 10px;
-        border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.12);
-        background: rgba(255,255,255,0.04);
-        font-size: 12px;
-        opacity: 0.9;
-        white-space: nowrap;
+      .pills{display:flex;gap:8px;flex-wrap:wrap;}
+      .pill{
+        padding:8px 10px;
+        border-radius:999px;
+        border:1px solid rgba(255,255,255,.12);
+        background:rgba(255,255,255,.04);
+        font-size:12px;
+        opacity:.9;
+        white-space:nowrap;
       }
 
       /* 3 lines of controls */
-      .controls {
-        display: grid;
-        gap: 8px;
-        justify-items: end;
+      .controls{
+        display:grid;
+        gap:8px;
+        justify-items:end;
+        align-content:start;
       }
-      .toggleGroup {
-        display: flex;
-        gap: 8px;
-        justify-content: flex-end;
-        flex-wrap: wrap;
-      }
-
-      button {
-        border: 1px solid rgba(255,255,255,0.16);
-        background: rgba(255,255,255,0.06);
-        color: #e9eef5;
-        padding: 10px 12px;
-        border-radius: 10px;
-        cursor: pointer;
-        font-weight: 600;
-      }
-      button:disabled { opacity: 0.5; cursor: not-allowed; }
-      .toggleGroup button.active {
-        border-color: rgba(0, 255, 140, 0.35);
-        background: rgba(0, 180, 90, 0.18);
+      .toggleGroup{
+        display:flex;
+        gap:8px;
+        flex-wrap:wrap;
+        justify-content:flex-end;
       }
 
-      main { display: grid; place-items: center; padding: 14px; }
-
-      /* Portrait stage: height-driven so it fits a phone screen nicely */
-/* Stage background (letterbox bars) */
-.stage { background: #000; }
-
-/* Video shows full frame without cropping */
-video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  transform: scaleX(-1);
-}
-
-/* Canvas stays transparent so video is visible */
-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  background: transparent;     /* IMPORTANT */
-  transform: scaleX(-1);
-  pointer-events: none;
-}
-
-
-
-      .hud {
-        position: absolute;
-        left: 12px;
-        top: 12px;
-        display: grid;
-        gap: 8px;
-        z-index: 5;
+      button{
+        border:1px solid rgba(255,255,255,.16);
+        background:rgba(255,255,255,.06);
+        color:#e9eef5;
+        padding:10px 12px;
+        border-radius:10px;
+        cursor:pointer;
+        font-weight:600;
+        -webkit-tap-highlight-color: transparent;
       }
-      .badge {
-        padding: 8px 10px;
-        border-radius: 12px;
-        background: rgba(0,0,0,0.45);
-        border: 1px solid rgba(255,255,255,0.10);
-        font-size: 12px;
-        line-height: 1.25;
+      button:disabled{opacity:.5;cursor:not-allowed;}
+      .toggleGroup button.active{
+        border-color:rgba(0,255,140,.35);
+        background:rgba(0,180,90,.18);
       }
 
-      .check {
-        position: absolute;
-        right: 14px;
-        top: 14px;
-        z-index: 6;
-        width: 70px;
-        height: 70px;
-        border-radius: 18px;
-        display: grid;
-        place-items: center;
-        background: rgba(0, 180, 90, 0.18);
-        border: 1px solid rgba(0, 255, 140, 0.35);
-        opacity: 0;
-        transform: scale(0.92);
-        transition: opacity 160ms ease, transform 160ms ease;
-        backdrop-filter: blur(8px);
-      }
-      .check.show { opacity: 1; transform: scale(1); }
-      .check svg { width: 42px; height: 42px; }
+      main{display:grid;place-items:center;padding:14px;}
 
-      .error {
-        position: absolute;
-        inset: 0;
-        display: grid;
-        place-items: center;
-        padding: 18px;
-        text-align: center;
-        background: rgba(0,0,0,0.6);
-        z-index: 10;
+      /* Portrait camera stage */
+      .stage{
+        position:relative;
+        height:min(78vh, 860px);
+        aspect-ratio:9/16;
+        width:auto;
+        max-width:96vw;
+
+        border-radius:16px;
+        overflow:hidden;
+        border:1px solid rgba(255,255,255,.10);
+        background:#000; /* letterbox bars live here */
+        touch-action: manipulation;
       }
-      .error .box {
-        max-width: 560px;
-        padding: 14px 14px;
-        border-radius: 14px;
-        border: 1px solid rgba(255,255,255,0.12);
-        background: rgba(20, 24, 32, 0.85);
+
+      /* IMPORTANT: video visible, canvas transparent */
+      video{
+        position:absolute;
+        inset:0;
+        width:100%;
+        height:100%;
+        object-fit:contain; /* NO CROP (fixes zoomed-in look) */
+        transform:scaleX(-1);
+        z-index:1;
       }
-      .error .box h2 { margin: 0 0 8px; font-size: 16px; }
-      .error .box p  { margin: 0; opacity: 0.85; font-size: 13px; line-height: 1.4; }
-      .hidden { display: none; }
+
+      canvas{
+        position:absolute;
+        inset:0;
+        width:100%;
+        height:100%;
+        object-fit:contain;
+        background:transparent; /* do not cover video */
+        transform:scaleX(-1);
+        pointer-events:none;
+        z-index:2;
+      }
+
+      .hud{
+        position:absolute;
+        left:12px;
+        top:12px;
+        display:grid;
+        gap:8px;
+        z-index:3;
+      }
+      .badge{
+        padding:8px 10px;
+        border-radius:12px;
+        background:rgba(0,0,0,.45);
+        border:1px solid rgba(255,255,255,.10);
+        font-size:12px;
+        line-height:1.25;
+        max-width:min(78vw, 340px);
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+      }
+
+      .check{
+        position:absolute;
+        right:14px;
+        top:14px;
+        z-index:4;
+        width:70px;
+        height:70px;
+        border-radius:18px;
+        display:grid;
+        place-items:center;
+        background:rgba(0,180,90,.18);
+        border:1px solid rgba(0,255,140,.35);
+        opacity:0;
+        transform:scale(.92);
+        transition:opacity 160ms ease,transform 160ms ease;
+        backdrop-filter:blur(8px);
+        pointer-events:none;
+      }
+      .check.show{opacity:1;transform:scale(1);}
+      .check svg{width:42px;height:42px;}
+
+      .error{
+        position:absolute;
+        inset:0;
+        display:grid;
+        place-items:center;
+        padding:18px;
+        text-align:center;
+        background:rgba(0,0,0,.65);
+        z-index:10;
+      }
+      .error .box{
+        max-width:560px;
+        padding:14px;
+        border-radius:14px;
+        border:1px solid rgba(255,255,255,.12);
+        background:rgba(20,24,32,.88);
+      }
+      .error .box h2{margin:0 0 8px;font-size:16px;}
+      .error .box p{margin:0;opacity:.88;font-size:13px;line-height:1.4;white-space:pre-wrap;}
+      .hidden{display:none;}
     </style>
   </head>
 
@@ -183,10 +195,11 @@ canvas {
             <div class="pills">
               <div class="pill" id="statusPill">Model: loading…</div>
               <div class="pill" id="modePill">Mode: Push-ups</div>
+              <div class="pill" id="fpsPill">Inference: — fps</div>
             </div>
           </div>
 
-          <!-- 3 lines: (1) mode buttons, (2) enable camera, (3) reset -->
+          <!-- 3 lines -->
           <div class="controls">
             <div class="toggleGroup" aria-label="Mode selection">
               <button id="pushupModeBtn" class="active" disabled>Push-ups</button>
@@ -232,7 +245,7 @@ canvas {
     </div>
 
     <script type="module">
-      import { PoseLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.skypack.dev/@mediapipe/tasks-vision@0.10.0";
+      import { PoseLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/+esm";
 
       const MODEL_URL =
         "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
@@ -241,6 +254,7 @@ canvas {
 
       const statusPill = document.getElementById("statusPill");
       const modePill = document.getElementById("modePill");
+      const fpsPill = document.getElementById("fpsPill");
       const subtitle = document.getElementById("subtitle");
 
       const startBtn = document.getElementById("startBtn");
@@ -253,7 +267,7 @@ canvas {
 
       const video = document.getElementById("video");
       const canvas = document.getElementById("overlay");
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext("2d", { alpha: true });
 
       const hud1 = document.getElementById("hud1");
       const hud2 = document.getElementById("hud2");
@@ -261,12 +275,12 @@ canvas {
 
       const checkmark = document.getElementById("checkmark");
 
+      /** -------------------- Mode -------------------- **/
       const Mode = Object.freeze({ PUSHUPS: "pushups", JACKS: "jacks" });
       let mode = Mode.PUSHUPS;
 
       function setMode(nextMode) {
         mode = nextMode;
-
         pushupModeBtn.classList.toggle("active", mode === Mode.PUSHUPS);
         jackModeBtn.classList.toggle("active", mode === Mode.JACKS);
 
@@ -279,18 +293,22 @@ canvas {
         reset();
       }
 
-      /** Shared thresholds **/
+      /** -------------------- Tuning -------------------- **/
       const CONF_MIN = 0.55;
-      const SHOW_CHECK_MS = 800;
+      const SHOW_CHECK_MS = 700;
 
-      /** Push-ups **/
+      // Reduce CPU load -> makes mobile responsive
+      const TARGET_INFER_FPS = 15;
+      const MIN_INFER_MS = 1000 / TARGET_INFER_FPS;
+
+      // Push-ups
       const PUSHUP_DOWN_ANGLE = 105;
       const PUSHUP_UP_ANGLE = 165;
       const PUSHUP_MAX_SHOULDER_HIP_Y_DIFF = 0.22;
       const PUSHUP_MAX_HIP_ANKLE_Y_DIFF = 0.30;
       const PUSHUP_MIN_WRIST_BELOW_SHOULDER = 0.04;
 
-      /** Jumping jacks **/
+      // Jumping jacks
       const JACK_ARMS_OPEN_MULT = 1.6;
       const JACK_ARMS_CLOSED_MULT = 1.25;
       const JACK_LEGS_OPEN_MULT = 1.6;
@@ -298,17 +316,23 @@ canvas {
       const JACK_WRISTS_ABOVE_SHOULDERS_MARGIN = 0.06;
       const JACK_WRISTS_NOT_HIGH_MARGIN = 0.02;
 
+      /** -------------------- State -------------------- **/
       let poseLandmarker = null;
       let drawingUtils = null;
 
+      let stream = null;
       let webcamRunning = false;
-      let lastVideoTime = -1;
+      let rafId = null;
 
       let repCount = 0;
       let phase = "unknown";
       let lastMetric = null;
 
       let checkTimer = null;
+
+      let lastInferAt = 0;
+      let inferCount = 0;
+      let fpsWindowStart = performance.now();
 
       function showError(message) {
         errorText.textContent = message;
@@ -330,12 +354,10 @@ canvas {
       function angleDeg(a, b, c) {
         const abx = a.x - b.x, aby = a.y - b.y;
         const cbx = c.x - b.x, cby = c.y - b.y;
-
         const dot = abx * cbx + aby * cby;
         const ab = Math.hypot(abx, aby);
         const cb = Math.hypot(cbx, cby);
         if (ab < 1e-6 || cb < 1e-6) return null;
-
         const cos = clamp(dot / (ab * cb), -1, 1);
         return Math.acos(cos) * (180 / Math.PI);
       }
@@ -347,15 +369,20 @@ canvas {
       }
 
       function resizeCanvasToVideo() {
-        const w = video.videoWidth || 720;
-        const h = video.videoHeight || 1280;
+        const w = video.videoWidth || 0;
+        const h = video.videoHeight || 0;
+        if (!w || !h) return;
         if (canvas.width !== w) canvas.width = w;
         if (canvas.height !== h) canvas.height = h;
       }
 
+      function clearCanvas() {
+        if (canvas.width && canvas.height) ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+
       function drawPose(landmarks) {
         resizeCanvasToVideo();
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        clearCanvas();
         drawingUtils.drawLandmarks(landmarks, { radius: 3 });
         drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS);
       }
@@ -366,7 +393,7 @@ canvas {
         hud3.textContent = `Gate: ${gate}`;
       }
 
-      /** Push-up logic **/
+      /** -------------------- Push-up detection -------------------- **/
       function pickSide(landmarks) {
         const L = [11, 13, 15].map(i => lmConf(landmarks[i]));
         const R = [12, 14, 16].map(i => lmConf(landmarks[i]));
@@ -398,7 +425,7 @@ canvas {
           lmConf(hip) >= CONF_MIN &&
           lmConf(ankle) >= CONF_MIN;
 
-        if (!confOk) return { ok: false, reason: "low landmark confidence" };
+        if (!confOk) return { ok: false, reason: "low confidence" };
 
         const wristBelow = (wrist.y - shoulder.y) >= PUSHUP_MIN_WRIST_BELOW_SHOULDER;
         const shHip = Math.abs(shoulder.y - hip.y) <= PUSHUP_MAX_SHOULDER_HIP_Y_DIFF;
@@ -430,9 +457,11 @@ canvas {
           return;
         }
 
+        // Smooth
         if (lastMetric == null) lastMetric = a;
         else lastMetric = 0.65 * lastMetric + 0.35 * a;
 
+        // State machine: up -> down -> up
         if ((phase === "unknown" || phase === "up") && lastMetric <= PUSHUP_DOWN_ANGLE) {
           phase = "down";
         } else if (phase === "down" && lastMetric >= PUSHUP_UP_ANGLE) {
@@ -452,12 +481,10 @@ canvas {
         });
       }
 
-      /** Jumping jacks logic **/
+      /** -------------------- Jumping jack detection -------------------- **/
       function jackGateOk(landmarks) {
         const idxs = [11,12,15,16,23,24,27,28];
-        for (const i of idxs) {
-          if (lmConf(landmarks[i]) < CONF_MIN) return { ok: false, reason: "low landmark confidence" };
-        }
+        for (const i of idxs) if (lmConf(landmarks[i]) < CONF_MIN) return { ok: false, reason: "low confidence" };
         return { ok: true, reason: "ok" };
       }
 
@@ -504,6 +531,7 @@ canvas {
         const legsRatio = (hipWidth > 1e-6) ? ankleDist / hipWidth : 0;
         lastMetric = `A:${armsRatio.toFixed(2)} L:${legsRatio.toFixed(2)}`;
 
+        // State machine: closed -> open -> closed
         if (phase === "unknown") {
           phase = closedPose ? "closed" : (openPose ? "open" : "unknown");
         } else if (phase === "closed") {
@@ -530,21 +558,34 @@ canvas {
         else processJumpingJacks(landmarks);
       }
 
-      async function predictLoop() {
+      /** -------------------- Loop -------------------- **/
+      function updateFps(now) {
+        inferCount++;
+        const elapsed = now - fpsWindowStart;
+        if (elapsed >= 1000) {
+          const fps = inferCount / (elapsed / 1000);
+          fpsPill.textContent = `Inference: ${fps.toFixed(1)} fps`;
+          fpsWindowStart = now;
+          inferCount = 0;
+        }
+      }
+
+      function loop(now) {
         if (!webcamRunning) return;
 
-        if (video.currentTime !== lastVideoTime) {
-          lastVideoTime = video.currentTime;
+        // Throttle inference for responsiveness
+        if (now - lastInferAt >= MIN_INFER_MS && video.readyState >= 2) {
+          lastInferAt = now;
 
-          const now = performance.now();
           poseLandmarker.detectForVideo(video, now, (result) => {
             if (!result?.landmarks?.length) {
+              clearCanvas();
               updateHUD({
                 reps: repCount,
                 metricLabel: mode === Mode.PUSHUPS ? "Elbow" : "Open",
                 metricValue: "—",
                 phaseText: phase,
-                gate: "no pose detected"
+                gate: "no pose"
               });
               return;
             }
@@ -553,26 +594,44 @@ canvas {
             drawPose(person);
             processPoseByMode(person);
           });
+
+          updateFps(now);
         }
 
-        requestAnimationFrame(predictLoop);
+        rafId = requestAnimationFrame(loop);
       }
 
+      /** -------------------- Model + Camera -------------------- **/
       async function initModel() {
         statusPill.textContent = "Model: loading…";
+
         const vision = await FilesetResolver.forVisionTasks(WASM_ROOT);
 
-        poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-          baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
-          runningMode: "VIDEO",
-          numPoses: 1,
-          minPoseDetectionConfidence: 0.5,
-          minPosePresenceConfidence: 0.5,
-          minTrackingConfidence: 0.5,
-        });
+        // Try GPU first; fallback to CPU if needed
+        try {
+          poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
+            runningMode: "VIDEO",
+            numPoses: 1,
+            minPoseDetectionConfidence: 0.5,
+            minPosePresenceConfidence: 0.5,
+            minTrackingConfidence: 0.5,
+          });
+          statusPill.textContent = "Model: ready (GPU)";
+        } catch (e) {
+          poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetPath: MODEL_URL, delegate: "CPU" },
+            runningMode: "VIDEO",
+            numPoses: 1,
+            minPoseDetectionConfidence: 0.5,
+            minPosePresenceConfidence: 0.5,
+            minTrackingConfidence: 0.5,
+          });
+          statusPill.textContent = "Model: ready (CPU)";
+        }
 
         drawingUtils = new DrawingUtils(ctx);
-        statusPill.textContent = "Model: ready";
+
         startBtn.disabled = false;
         pushupModeBtn.disabled = false;
         jackModeBtn.disabled = false;
@@ -581,31 +640,60 @@ canvas {
       async function startCamera() {
         hideError();
 
-        // Portrait-friendly constraints
-const constraints = {
-  video: {
-    facingMode: "user",
-    width: { ideal: 1280 },
-    height: { ideal: 720 }
-    // removed aspectRatio
-  },
-  audio: false,
-};
+        // Avoid forcing aspectRatio; keep it flexible to prevent weird cropping/zoom.
+        const constraints = {
+          video: {
+            facingMode: "user",
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30, max: 30 }
+          },
+          audio: false
+        };
 
-
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
 
-        await new Promise((resolve) => { video.onloadedmetadata = () => resolve(); });
+        await new Promise((resolve) => {
+          video.onloadedmetadata = () => resolve();
+        });
+
+        // Some mobile browsers need an explicit play()
+        try { await video.play(); } catch {}
 
         webcamRunning = true;
         resetBtn.disabled = false;
-        startBtn.textContent = "Camera on";
-        startBtn.disabled = true;
+        startBtn.textContent = "Stop camera";
 
-        lastVideoTime = -1;
+        // Reset timing
+        lastInferAt = 0;
+        fpsWindowStart = performance.now();
+        inferCount = 0;
+        fpsPill.textContent = "Inference: — fps";
+
+        // Ensure canvas size matches the real video frame
         resizeCanvasToVideo();
-        predictLoop();
+        clearCanvas();
+
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(loop);
+      }
+
+      function stopCamera() {
+        webcamRunning = false;
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = null;
+
+        if (stream) {
+          for (const t of stream.getTracks()) t.stop();
+          stream = null;
+        }
+        video.srcObject = null;
+
+        clearCanvas();
+        startBtn.textContent = "Enable camera";
+        resetBtn.disabled = true;
+        fpsPill.textContent = "Inference: — fps";
       }
 
       function reset() {
@@ -625,32 +713,42 @@ const constraints = {
 
       startBtn.addEventListener("click", async () => {
         try {
-          await startCamera();
+          if (webcamRunning) stopCamera();
+          else await startCamera();
         } catch (e) {
+          stopCamera();
           showError(
             String(e?.message || e) +
-              "\n\nCommon fixes:\n• Serve over https or localhost\n• Allow camera permission\n• Close other tabs using the camera"
+            "\n\nFixes:\n• Use https or http://localhost\n• Allow camera permission\n• Close other tabs using the camera"
           );
         }
       });
 
       resetBtn.addEventListener("click", reset);
-
       pushupModeBtn.addEventListener("click", () => setMode(Mode.PUSHUPS));
       jackModeBtn.addEventListener("click", () => setMode(Mode.JACKS));
 
-      try {
-        if (!navigator.mediaDevices?.getUserMedia) {
-          showError("This browser does not support camera access (getUserMedia).");
-          statusPill.textContent = "Model: unavailable";
-        } else {
+      // Pause camera work when tab is hidden (helps mobile)
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && webcamRunning) stopCamera();
+      });
+
+      /** -------------------- Boot -------------------- **/
+      (async () => {
+        try {
+          if (!navigator.mediaDevices?.getUserMedia) {
+            statusPill.textContent = "Model: unavailable";
+            showError("This browser does not support camera access (getUserMedia).");
+            return;
+          }
           await initModel();
           setMode(Mode.PUSHUPS);
+          reset();
+        } catch (e) {
+          statusPill.textContent = "Model: failed";
+          showError(String(e?.message || e));
         }
-      } catch (e) {
-        showError(String(e?.message || e));
-        statusPill.textContent = "Model: failed";
-      }
+      })();
     </script>
   </body>
 </html>
