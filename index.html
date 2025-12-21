@@ -7,16 +7,13 @@
 
     <style>
       :root { color-scheme: dark; }
-
       body{
         margin:0;
         font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
         background:#0b0f14;
         color:#e9eef5;
       }
-
       .wrap{min-height:100vh;display:grid;grid-template-rows:auto 1fr;}
-
       header{
         padding:12px 14px;
         border-bottom:1px solid rgba(255,255,255,.08);
@@ -25,18 +22,15 @@
         display:grid;
         gap:10px;
       }
-
       .topRow{
         display:flex;
         align-items:flex-start;
         justify-content:space-between;
         gap:12px;
       }
-
       .left{display:grid;gap:4px;min-width:0;}
       .title{font-weight:700;font-size:14px;}
       .subtitle{opacity:.8;font-size:12px;}
-
       .pills{display:flex;gap:8px;flex-wrap:wrap;}
       .pill{
         padding:8px 10px;
@@ -48,7 +42,6 @@
         white-space:nowrap;
       }
 
-      /* 3 lines of controls */
       .controls{
         display:grid;
         gap:8px;
@@ -61,7 +54,6 @@
         flex-wrap:wrap;
         justify-content:flex-end;
       }
-
       button{
         border:1px solid rgba(255,255,255,.16);
         background:rgba(255,255,255,.06);
@@ -79,49 +71,37 @@
       }
 
       main{display:grid;place-items:center;padding:14px;}
-
       .stage{
         position:relative;
         height:min(78vh, 860px);
         aspect-ratio:9/16;
         width:auto;
         max-width:96vw;
-
         border-radius:16px;
         overflow:hidden;
         border:1px solid rgba(255,255,255,.10);
         background:#000;
         touch-action: manipulation;
       }
-
       video{
-        position:absolute;
-        inset:0;
-        width:100%;
-        height:100%;
-        object-fit:contain;  /* show full frame */
+        position:absolute; inset:0;
+        width:100%; height:100%;
+        object-fit:contain; /* NO crop/zoom */
         transform:scaleX(-1);
         z-index:1;
       }
-
       canvas{
-        position:absolute;
-        inset:0;
-        width:100%;
-        height:100%;
+        position:absolute; inset:0;
+        width:100%; height:100%;
         object-fit:contain;
         background:transparent;
         transform:scaleX(-1);
         pointer-events:none;
         z-index:2;
       }
-
       .hud{
-        position:absolute;
-        left:12px;
-        top:12px;
-        display:grid;
-        gap:8px;
+        position:absolute; left:12px; top:12px;
+        display:grid; gap:8px;
         z-index:3;
       }
       .badge{
@@ -131,26 +111,20 @@
         border:1px solid rgba(255,255,255,.10);
         font-size:12px;
         line-height:1.25;
-        max-width:min(78vw, 420px);
+        max-width:min(78vw, 520px);
         overflow:hidden;
         text-overflow:ellipsis;
         white-space:nowrap;
       }
-
       .check{
-        position:absolute;
-        right:14px;
-        top:14px;
+        position:absolute; right:14px; top:14px;
         z-index:4;
-        width:70px;
-        height:70px;
+        width:70px; height:70px;
         border-radius:18px;
-        display:grid;
-        place-items:center;
+        display:grid; place-items:center;
         background:rgba(0,180,90,.18);
         border:1px solid rgba(0,255,140,.35);
-        opacity:0;
-        transform:scale(.92);
+        opacity:0; transform:scale(.92);
         transition:opacity 160ms ease,transform 160ms ease;
         backdrop-filter:blur(8px);
         pointer-events:none;
@@ -159,12 +133,9 @@
       .check svg{width:42px;height:42px;}
 
       .error{
-        position:absolute;
-        inset:0;
-        display:grid;
-        place-items:center;
-        padding:18px;
-        text-align:center;
+        position:absolute; inset:0;
+        display:grid; place-items:center;
+        padding:18px; text-align:center;
         background:rgba(0,0,0,.65);
         z-index:10;
       }
@@ -244,7 +215,7 @@
     <script type="module">
       import { PoseLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/+esm";
 
-      // Try FULL first (better at distance), fallback to LITE.
+      // FULL tends to work better at distance; fallback to LITE.
       const MODEL_URLS = [
         "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
         "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
@@ -271,10 +242,8 @@
       const hud1 = document.getElementById("hud1");
       const hud2 = document.getElementById("hud2");
       const hud3 = document.getElementById("hud3");
-
       const checkmark = document.getElementById("checkmark");
 
-      /** -------------------- Mode -------------------- **/
       const Mode = Object.freeze({ PUSHUPS: "pushups", JACKS: "jacks" });
       let mode = Mode.PUSHUPS;
 
@@ -287,44 +256,34 @@
         subtitle.textContent =
           mode === Mode.PUSHUPS
             ? "Push-ups: side/profile view works best."
-            : "Jumping jacks: stand back so your full body is visible. Good lighting helps.";
+            : "Jumping jacks: full body in frame. Stand back and use good lighting.";
 
         reset(true);
       }
 
-      /** -------------------- Performance -------------------- **/
+      // Keep mobile responsive
       const TARGET_INFER_FPS = 15;
       const MIN_INFER_MS = 1000 / TARGET_INFER_FPS;
 
-      /** -------------------- Tuning -------------------- **/
-      // Your error "low LShoulder" happens when you're far away -> confidence drops.
-      // So: (1) lower jack confidence requirement, (2) don't require LEFT shoulder specifically.
-      const CONF_MIN_PUSHUP = 0.45;
-      const CONF_MIN_JACK = 0.12; // tolerant for full-body far shots
-
       const SHOW_CHECK_MS = 700;
 
-      // Push-ups (tolerant)
+      // Push-up thresholds (tolerant)
       const PUSHUP_DOWN_ANGLE = 110;
       const PUSHUP_UP_ANGLE = 160;
-      const PUSHUP_MAX_SHOULDER_HIP_Y_DIFF = 0.30;
-      const PUSHUP_MAX_HIP_ANKLE_Y_DIFF = 0.45;
-      const PUSHUP_MIN_WRIST_BELOW_SHOULDER = 0.02;
 
-      // Jumping jacks thresholds (more forgiving)
-      const JACK_OPEN_ARMS_RATIO = 1.18;
-      const JACK_CLOSED_ARMS_RATIO = 1.05;
+      // Jumping jack thresholds (tolerant + hysteresis)
+      const JACK_OPEN_ARMS_RATIO = 1.30;
+      const JACK_CLOSED_ARMS_RATIO = 1.12;
 
-      const JACK_OPEN_LEGS_RATIO = 1.18;
-      const JACK_CLOSED_LEGS_RATIO = 1.06;
+      const JACK_OPEN_LEGS_RATIO = 1.30;
+      const JACK_CLOSED_LEGS_RATIO = 1.12;
 
-      // Arms-up check: use shoulders if available; else use nose as reference.
-      const JACK_ARMS_UP_OPEN = 0.010;
-      const JACK_ARMS_UP_CLOSED = 0.004;
+      // “Arms up” uses nose/shoulder reference; positive = arms above ref
+      const JACK_UP_OPEN = 0.030;
+      const JACK_UP_CLOSED = 0.012;
 
-      const JACK_EMA_ALPHA = 0.35;
+      const EMA_ALPHA = 0.35;
 
-      /** -------------------- State -------------------- **/
       let poseLandmarker = null;
       let drawingUtils = null;
 
@@ -336,10 +295,10 @@
       let phase = "unknown";
       let lastMetric = null;
 
-      // Jack smoothing state
-      let jackArmsRatioEma = null;
-      let jackLegsRatioEma = null;
-      let jackArmsUpEma = null;
+      // Smoothed jack signals
+      let armsRatioEma = null;
+      let legsRatioEma = null;
+      let upEma = null;
 
       let checkTimer = null;
 
@@ -358,26 +317,17 @@
 
       function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
       function hypot2(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
+      function ema(prev, next, alpha) { return (prev == null) ? next : (prev * (1 - alpha) + next * alpha); }
 
-      function lmConf(lm) {
-        const v = (typeof lm.visibility === "number") ? lm.visibility : lm.presence;
-        return (typeof v === "number") ? v : 0;
-      }
-      function c(landmarks, idx) { return lmConf(landmarks[idx]); }
-
-      function angleDeg(a, b, cpt) {
+      function angleDeg(a, b, c) {
         const abx = a.x - b.x, aby = a.y - b.y;
-        const cbx = cpt.x - b.x, cby = cpt.y - b.y;
+        const cbx = c.x - b.x, cby = c.y - b.y;
         const dot = abx * cbx + aby * cby;
         const ab = Math.hypot(abx, aby);
         const cb = Math.hypot(cbx, cby);
         if (ab < 1e-6 || cb < 1e-6) return null;
         const cos = clamp(dot / (ab * cb), -1, 1);
         return Math.acos(cos) * (180 / Math.PI);
-      }
-
-      function ema(prev, next, alpha) {
-        return (prev == null) ? next : (prev * (1 - alpha) + next * alpha);
       }
 
       function flashCheckmark() {
@@ -393,11 +343,9 @@
         if (canvas.width !== w) canvas.width = w;
         if (canvas.height !== h) canvas.height = h;
       }
-
       function clearCanvas() {
         if (canvas.width && canvas.height) ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
-
       function drawPose(landmarks) {
         resizeCanvasToVideo();
         clearCanvas();
@@ -411,76 +359,47 @@
         hud3.textContent = `Gate: ${gate}`;
       }
 
+      function validPoint(p) {
+        return p && Number.isFinite(p.x) && Number.isFinite(p.y);
+      }
+
+      function bestOf(landmarks, indices) {
+        // No confidence gating. Just pick first valid point; if none valid, return null.
+        for (const i of indices) {
+          const p = landmarks[i];
+          if (validPoint(p)) return p;
+        }
+        return null;
+      }
+
       /** -------------------- Push-ups -------------------- **/
       function pickSide(landmarks) {
-        const L = [11, 13, 15].map(i => c(landmarks, i));
-        const R = [12, 14, 16].map(i => c(landmarks, i));
-        const lAvg = (L[0] + L[1] + L[2]) / 3;
-        const rAvg = (R[0] + R[1] + R[2]) / 3;
-        return (lAvg >= rAvg) ? "left" : "right";
-      }
-
-      function getArmPoints(landmarks, side) {
-        const idx = (side === "left")
-          ? { shoulder: 11, elbow: 13, wrist: 15, hip: 23, ankle: 27 }
-          : { shoulder: 12, elbow: 14, wrist: 16, hip: 24, ankle: 28 };
-
-        return {
-          shoulder: landmarks[idx.shoulder],
-          elbow: landmarks[idx.elbow],
-          wrist: landmarks[idx.wrist],
-          hip: landmarks[idx.hip],
-          ankle: landmarks[idx.ankle],
-          conf: {
-            shoulder: c(landmarks, idx.shoulder),
-            wrist: c(landmarks, idx.wrist),
-            hip: c(landmarks, idx.hip),
-            ankle: c(landmarks, idx.ankle),
-          }
-        };
-      }
-
-      function pushupGateOk(pts) {
-        const confOk =
-          pts.conf.shoulder >= CONF_MIN_PUSHUP &&
-          pts.conf.wrist >= CONF_MIN_PUSHUP &&
-          pts.conf.hip >= CONF_MIN_PUSHUP &&
-          pts.conf.ankle >= CONF_MIN_PUSHUP;
-
-        if (!confOk) {
-          return { ok: false, reason: `low conf S:${pts.conf.shoulder.toFixed(2)} W:${pts.conf.wrist.toFixed(2)} H:${pts.conf.hip.toFixed(2)} A:${pts.conf.ankle.toFixed(2)}` };
-        }
-
-        const wristBelow = (pts.wrist.y - pts.shoulder.y) >= PUSHUP_MIN_WRIST_BELOW_SHOULDER;
-        const shHip = Math.abs(pts.shoulder.y - pts.hip.y) <= PUSHUP_MAX_SHOULDER_HIP_Y_DIFF;
-        const hipAnk = Math.abs(pts.hip.y - pts.ankle.y) <= PUSHUP_MAX_HIP_ANKLE_Y_DIFF;
-
-        const ok = wristBelow && shHip && hipAnk;
-        return { ok, reason: ok ? "ok" : `wristBelow=${wristBelow}, shHip=${shHip}, hipAnk=${hipAnk}` };
+        // Prefer whichever side has wrist + elbow + shoulder valid
+        const leftOk = validPoint(landmarks[11]) && validPoint(landmarks[13]) && validPoint(landmarks[15]);
+        const rightOk = validPoint(landmarks[12]) && validPoint(landmarks[14]) && validPoint(landmarks[16]);
+        if (leftOk && !rightOk) return "left";
+        if (rightOk && !leftOk) return "right";
+        return "left"; // default
       }
 
       function processPushups(landmarks) {
         const side = pickSide(landmarks);
-        const pts = getArmPoints(landmarks, side);
-        const gate = pushupGateOk(pts);
+        const shoulder = landmarks[side === "left" ? 11 : 12];
+        const elbow    = landmarks[side === "left" ? 13 : 14];
+        const wrist    = landmarks[side === "left" ? 15 : 16];
 
-        if (!gate.ok) {
-          updateHUD({
-            reps: repCount,
-            metricLabel: "Elbow",
-            metricValue: lastMetric == null ? "—" : `${lastMetric.toFixed(0)}°`,
-            phaseText: phase,
-            gate: gate.reason
-          });
+        if (!validPoint(shoulder) || !validPoint(elbow) || !validPoint(wrist)) {
+          updateHUD({ reps: repCount, metricLabel:"Elbow", metricValue:"—", phaseText:phase, gate:"need shoulder/elbow/wrist" });
           return;
         }
 
-        const a = angleDeg(pts.shoulder, pts.elbow, pts.wrist);
+        const a = angleDeg(shoulder, elbow, wrist);
         if (a == null) {
-          updateHUD({ reps: repCount, metricLabel: "Elbow", metricValue: "—", phaseText: phase, gate: "bad angle" });
+          updateHUD({ reps: repCount, metricLabel:"Elbow", metricValue:"—", phaseText:phase, gate:"bad angle" });
           return;
         }
 
+        // Simple smoothing
         if (lastMetric == null) lastMetric = a;
         else lastMetric = 0.65 * lastMetric + 0.35 * a;
 
@@ -503,114 +422,83 @@
         });
       }
 
-      /** -------------------- Jumping jacks (fixes “low LShoulder”) -------------------- **/
-      function bestPoint(landmarks, indices) {
-        let best = { pt: null, conf: -1, idx: -1 };
-        for (const i of indices) {
-          const conf = c(landmarks, i);
-          if (conf > best.conf) best = { pt: landmarks[i], conf, idx: i };
-        }
-        return best;
-      }
-
-      function jackGate(landmarks) {
-        // For far/full-body: do NOT require *left* shoulder specifically.
-        // Use whichever shoulder is better, and fall back to nose if shoulders are weak.
-        const LS = { pt: landmarks[11], conf: c(landmarks, 11) };
-        const RS = { pt: landmarks[12], conf: c(landmarks, 12) };
-        const LH = { pt: landmarks[23], conf: c(landmarks, 23) };
-        const RH = { pt: landmarks[24], conf: c(landmarks, 24) };
-        const NO = { pt: landmarks[0],  conf: c(landmarks, 0) };
-
-        const lArm = bestPoint(landmarks, [15, 13]); // wrist or elbow
-        const rArm = bestPoint(landmarks, [16, 14]);
-        const lLeg = bestPoint(landmarks, [27, 25]); // ankle or knee
-        const rLeg = bestPoint(landmarks, [28, 26]);
-
-        const haveHips = (LH.conf >= CONF_MIN_JACK && RH.conf >= CONF_MIN_JACK);
-        const haveSomeShoulder = (LS.conf >= CONF_MIN_JACK || RS.conf >= CONF_MIN_JACK);
-        const haveNose = (NO.conf >= CONF_MIN_JACK);
-
-        if (!haveHips) return { ok:false, reason:`low hips LH:${LH.conf.toFixed(2)} RH:${RH.conf.toFixed(2)}` };
-        if (!haveSomeShoulder && !haveNose) {
-          return { ok:false, reason:`low shoulders/nose LS:${LS.conf.toFixed(2)} RS:${RS.conf.toFixed(2)} NO:${NO.conf.toFixed(2)}` };
-        }
-        if (lArm.conf < CONF_MIN_JACK || rArm.conf < CONF_MIN_JACK) {
-          return { ok:false, reason:`low arms L:${lArm.conf.toFixed(2)} R:${rArm.conf.toFixed(2)}` };
-        }
-        if (lLeg.conf < CONF_MIN_JACK || rLeg.conf < CONF_MIN_JACK) {
-          return { ok:false, reason:`low legs L:${lLeg.conf.toFixed(2)} R:${rLeg.conf.toFixed(2)}` };
-        }
-
-        return { ok:true, LS, RS, LH, RH, NO, lArm, rArm, lLeg, rLeg };
-      }
-
+      /** -------------------- Jumping jacks -------------------- **/
       function processJumpingJacks(landmarks) {
-        const g = jackGate(landmarks);
-        if (!g.ok) {
+        // Arms: prefer wrists; fallback to elbows
+        const lArm = bestOf(landmarks, [15, 13]);
+        const rArm = bestOf(landmarks, [16, 14]);
+        // Legs: prefer ankles; fallback to knees
+        const lLeg = bestOf(landmarks, [27, 25]);
+        const rLeg = bestOf(landmarks, [28, 26]);
+
+        // Reference points
+        const lShoulder = landmarks[11];
+        const rShoulder = landmarks[12];
+        const lHip = landmarks[23];
+        const rHip = landmarks[24];
+        const nose = landmarks[0];
+
+        if (!lArm || !rArm || !lLeg || !rLeg) {
           updateHUD({
             reps: repCount,
             metricLabel: "Jacks",
-            metricValue: lastMetric == null ? "—" : lastMetric,
+            metricValue: lastMetric ?? "—",
             phaseText: phase,
-            gate: g.reason
+            gate: "need arms+legs in frame"
           });
           return;
         }
 
-        // Baselines
-        const hipWidth = hypot2(g.LH.pt.x, g.LH.pt.y, g.RH.pt.x, g.RH.pt.y);
-
-        // Shoulder width if both shoulders are decent, else use hipWidth.
-        let baseArms = hipWidth;
-        if (g.LS.conf >= CONF_MIN_JACK && g.RS.conf >= CONF_MIN_JACK) {
-          const shoulderWidth = hypot2(g.LS.pt.x, g.LS.pt.y, g.RS.pt.x, g.RS.pt.y);
-          baseArms = Math.max(shoulderWidth, 0.08);
-        } else {
-          baseArms = Math.max(hipWidth, 0.08);
+        // Scale for ratios: try shoulders, then hips, else fallback constant
+        let shoulderWidth = null;
+        if (validPoint(lShoulder) && validPoint(rShoulder)) {
+          shoulderWidth = hypot2(lShoulder.x, lShoulder.y, rShoulder.x, rShoulder.y);
+        }
+        let hipWidth = null;
+        if (validPoint(lHip) && validPoint(rHip)) {
+          hipWidth = hypot2(lHip.x, lHip.y, rHip.x, rHip.y);
         }
 
-        const baseLegs = Math.max(hipWidth, 0.08);
+        const baseArms = Math.max(shoulderWidth ?? hipWidth ?? 0.25, 0.10);
+        const baseLegs = Math.max(hipWidth ?? shoulderWidth ?? 0.25, 0.10);
 
-        // Distances (use wrist or elbow / ankle or knee based on best confidence)
-        const armDist = hypot2(g.lArm.pt.x, g.lArm.pt.y, g.rArm.pt.x, g.rArm.pt.y);
-        const legDist = hypot2(g.lLeg.pt.x, g.lLeg.pt.y, g.rLeg.pt.x, g.rLeg.pt.y);
+        const armDist = hypot2(lArm.x, lArm.y, rArm.x, rArm.y);
+        const legDist = hypot2(lLeg.x, lLeg.y, rLeg.x, rLeg.y);
 
         const armsRatio = armDist / baseArms;
         const legsRatio = legDist / baseLegs;
 
-        // Reference Y for “arms up”:
-        // Prefer best shoulder; fallback to nose.
+        // Arms-up reference: use nose if valid (best for overhead), else use best shoulder y
         let refY = null;
-        if (g.LS.conf >= g.RS.conf && g.LS.conf >= CONF_MIN_JACK) refY = g.LS.pt.y;
-        else if (g.RS.conf >= CONF_MIN_JACK) refY = g.RS.pt.y;
-        else refY = g.NO.pt.y; // nose
+        if (validPoint(nose)) refY = nose.y;
+        if (validPoint(lShoulder)) refY = (refY == null) ? lShoulder.y : Math.min(refY, lShoulder.y);
+        if (validPoint(rShoulder)) refY = (refY == null) ? rShoulder.y : Math.min(refY, rShoulder.y);
+        if (refY == null) refY = 0.4; // fallback
 
-        const armsY = (g.lArm.pt.y + g.rArm.pt.y) / 2;
-        const armsUpDelta = (refY - armsY); // positive when arms are above the reference
+        const armsY = (lArm.y + rArm.y) / 2;
+        const up = (refY - armsY); // positive => arms above ref
 
-        // Smooth for stability
-        jackArmsRatioEma = ema(jackArmsRatioEma, armsRatio, JACK_EMA_ALPHA);
-        jackLegsRatioEma = ema(jackLegsRatioEma, legsRatio, JACK_EMA_ALPHA);
-        jackArmsUpEma = ema(jackArmsUpEma, armsUpDelta, JACK_EMA_ALPHA);
+        // Smooth
+        armsRatioEma = ema(armsRatioEma, armsRatio, EMA_ALPHA);
+        legsRatioEma = ema(legsRatioEma, legsRatio, EMA_ALPHA);
+        upEma = ema(upEma, up, EMA_ALPHA);
 
         const openPose =
-          jackArmsRatioEma >= JACK_OPEN_ARMS_RATIO &&
-          jackLegsRatioEma >= JACK_OPEN_LEGS_RATIO &&
-          jackArmsUpEma >= JACK_ARMS_UP_OPEN;
+          armsRatioEma >= JACK_OPEN_ARMS_RATIO &&
+          legsRatioEma >= JACK_OPEN_LEGS_RATIO &&
+          upEma >= JACK_UP_OPEN;
 
         const closedPose =
-          jackArmsRatioEma <= JACK_CLOSED_ARMS_RATIO &&
-          jackLegsRatioEma <= JACK_CLOSED_LEGS_RATIO &&
-          jackArmsUpEma <= JACK_ARMS_UP_CLOSED;
+          armsRatioEma <= JACK_CLOSED_ARMS_RATIO &&
+          legsRatioEma <= JACK_CLOSED_LEGS_RATIO &&
+          upEma <= JACK_UP_CLOSED;
 
-        lastMetric =
-          `A:${jackArmsRatioEma.toFixed(2)} L:${jackLegsRatioEma.toFixed(2)} Up:${jackArmsUpEma.toFixed(3)} ` +
-          `| LS:${g.LS.conf.toFixed(2)} RS:${g.RS.conf.toFixed(2)} NO:${g.NO.conf.toFixed(2)}`;
+        lastMetric = `A:${armsRatioEma.toFixed(2)} L:${legsRatioEma.toFixed(2)} Up:${upEma.toFixed(3)} (baseA:${baseArms.toFixed(2)} baseL:${baseLegs.toFixed(2)})`;
 
-        // closed -> open -> closed counts
+        // closed -> open -> closed = 1 rep
         if (phase === "unknown") {
-          phase = closedPose ? "closed" : (openPose ? "open" : "unknown");
+          if (closedPose) phase = "closed";
+          else if (openPose) phase = "open";
         } else if (phase === "closed") {
           if (openPose) phase = "open";
         } else if (phase === "open") {
@@ -682,7 +570,6 @@
           baseOptions: { modelAssetPath: modelUrl, delegate },
           runningMode: "VIDEO",
           numPoses: 1,
-          // Loosen these a bit for full-body at distance:
           minPoseDetectionConfidence: 0.35,
           minPosePresenceConfidence: 0.35,
           minTrackingConfidence: 0.35,
@@ -691,31 +578,24 @@
 
       async function initModel() {
         statusPill.textContent = "Model: loading…";
-        const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
+        const vision = await FilesetResolver.forVisionTasks(WASM_ROOT);
 
         let lastErr = null;
-
         for (const url of MODEL_URLS) {
-          // Try GPU, then CPU
           try {
             poseLandmarker = await createLandmarker(vision, url, "GPU");
-            statusPill.textContent = `Model: ready (GPU)`;
+            statusPill.textContent = "Model: ready (GPU)";
             drawingUtils = new DrawingUtils(ctx);
             return;
-          } catch (e) {
-            lastErr = e;
-          }
+          } catch (e) { lastErr = e; }
 
           try {
             poseLandmarker = await createLandmarker(vision, url, "CPU");
-            statusPill.textContent = `Model: ready (CPU)`;
+            statusPill.textContent = "Model: ready (CPU)";
             drawingUtils = new DrawingUtils(ctx);
             return;
-          } catch (e) {
-            lastErr = e;
-          }
+          } catch (e) { lastErr = e; }
         }
-
         throw lastErr || new Error("Failed to load pose model.");
       }
 
@@ -778,9 +658,9 @@
         checkmark.classList.remove("show");
 
         if (resetJackFilters) {
-          jackArmsRatioEma = null;
-          jackLegsRatioEma = null;
-          jackArmsUpEma = null;
+          armsRatioEma = null;
+          legsRatioEma = null;
+          upEma = null;
         }
 
         updateHUD({
