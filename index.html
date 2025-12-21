@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Push-up Detector (Camera)</title>
+    <title>Workout Detector (Push-ups + Jumping Jacks)</title>
     <style>
       :root { color-scheme: dark; }
       body {
@@ -12,25 +12,16 @@
         background: #0b0f14;
         color: #e9eef5;
       }
-      .wrap {
-        display: grid;
-        grid-template-rows: auto 1fr;
-        min-height: 100vh;
-      }
+      .wrap { display: grid; grid-template-rows: auto 1fr; min-height: 100vh; }
       header {
-        display: flex;
-        gap: 12px;
-        align-items: center;
-        justify-content: space-between;
-        padding: 12px 14px;
-        border-bottom: 1px solid rgba(255,255,255,0.08);
-        background: rgba(255,255,255,0.03);
-        backdrop-filter: blur(10px);
+        display: flex; gap: 12px; align-items: center; justify-content: space-between;
+        padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03); backdrop-filter: blur(10px);
       }
       header .left { display: flex; flex-direction: column; gap: 2px; }
       header .title { font-weight: 700; font-size: 14px; }
       header .subtitle { opacity: 0.8; font-size: 12px; }
-      header .right { display: flex; gap: 10px; align-items: center; }
+      header .right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
       button {
         border: 1px solid rgba(255,255,255,0.16);
         background: rgba(255,255,255,0.06);
@@ -48,12 +39,15 @@
         background: rgba(255,255,255,0.04);
         font-size: 12px;
         opacity: 0.9;
+        white-space: nowrap;
       }
-      main {
-        display: grid;
-        place-items: center;
-        padding: 14px;
+      .toggleGroup { display: flex; gap: 8px; }
+      .toggleGroup button.active {
+        border-color: rgba(0, 255, 140, 0.35);
+        background: rgba(0, 180, 90, 0.18);
       }
+
+      main { display: grid; place-items: center; padding: 14px; }
       .stage {
         width: min(980px, 100%);
         aspect-ratio: 16 / 9;
@@ -64,65 +58,38 @@
         background: #0a0d12;
       }
       video, canvas {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
+        position: absolute; inset: 0; width: 100%; height: 100%;
         object-fit: cover;
         transform: scaleX(-1); /* mirror like a selfie camera */
       }
       .hud {
-        position: absolute;
-        left: 12px;
-        top: 12px;
-        display: grid;
-        gap: 8px;
-        z-index: 5;
+        position: absolute; left: 12px; top: 12px;
+        display: grid; gap: 8px; z-index: 5;
       }
       .badge {
-        padding: 8px 10px;
-        border-radius: 12px;
+        padding: 8px 10px; border-radius: 12px;
         background: rgba(0,0,0,0.45);
         border: 1px solid rgba(255,255,255,0.10);
-        font-size: 12px;
-        line-height: 1.25;
+        font-size: 12px; line-height: 1.25;
       }
       .check {
-        position: absolute;
-        right: 14px;
-        top: 14px;
-        z-index: 6;
-        width: 70px;
-        height: 70px;
-        border-radius: 18px;
-        display: grid;
-        place-items: center;
+        position: absolute; right: 14px; top: 14px; z-index: 6;
+        width: 70px; height: 70px; border-radius: 18px;
+        display: grid; place-items: center;
         background: rgba(0, 180, 90, 0.18);
         border: 1px solid rgba(0, 255, 140, 0.35);
-        opacity: 0;
-        transform: scale(0.92);
+        opacity: 0; transform: scale(0.92);
         transition: opacity 160ms ease, transform 160ms ease;
         backdrop-filter: blur(8px);
       }
-      .check.show {
-        opacity: 1;
-        transform: scale(1);
-      }
+      .check.show { opacity: 1; transform: scale(1); }
       .check svg { width: 42px; height: 42px; }
       .error {
-        position: absolute;
-        inset: 0;
-        display: grid;
-        place-items: center;
-        padding: 18px;
-        text-align: center;
-        background: rgba(0,0,0,0.6);
-        z-index: 10;
+        position: absolute; inset: 0; display: grid; place-items: center;
+        padding: 18px; text-align: center; background: rgba(0,0,0,0.6); z-index: 10;
       }
       .error .box {
-        max-width: 560px;
-        padding: 14px 14px;
-        border-radius: 14px;
+        max-width: 560px; padding: 14px 14px; border-radius: 14px;
         border: 1px solid rgba(255,255,255,0.12);
         background: rgba(20, 24, 32, 0.85);
       }
@@ -136,11 +103,21 @@
     <div class="wrap">
       <header>
         <div class="left">
-          <div class="title">Push-up Detector</div>
-          <div class="subtitle">Tip: place the camera to the side (profile view) for best results.</div>
+          <div class="title">Workout Detector</div>
+          <div class="subtitle" id="subtitle">
+            Push-ups: side/profile view works best. Jumping jacks: full body in frame.
+          </div>
         </div>
+
         <div class="right">
           <div class="pill" id="statusPill">Model: loading…</div>
+          <div class="pill" id="modePill">Mode: Push-ups</div>
+
+          <div class="toggleGroup" aria-label="Mode selection">
+            <button id="pushupModeBtn" class="active" disabled>Push-ups</button>
+            <button id="jackModeBtn" disabled>Jumping jacks</button>
+          </div>
+
           <button id="startBtn" disabled>Enable camera</button>
           <button id="resetBtn" disabled>Reset</button>
         </div>
@@ -153,11 +130,11 @@
 
           <div class="hud">
             <div class="badge" id="hud1">Reps: 0</div>
-            <div class="badge" id="hud2">Angle: — | Phase: —</div>
-            <div class="badge" id="hud3">Plank gate: —</div>
+            <div class="badge" id="hud2">Metric: — | Phase: —</div>
+            <div class="badge" id="hud3">Gate: —</div>
           </div>
 
-          <div class="check" id="checkmark" aria-label="Push-up detected">
+          <div class="check" id="checkmark" aria-label="Rep detected">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path
                 d="M20 7L10.5 16.5L4 10"
@@ -188,8 +165,15 @@
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm";
 
       const statusPill = document.getElementById("statusPill");
+      const modePill = document.getElementById("modePill");
+      const subtitle = document.getElementById("subtitle");
+
       const startBtn = document.getElementById("startBtn");
       const resetBtn = document.getElementById("resetBtn");
+
+      const pushupModeBtn = document.getElementById("pushupModeBtn");
+      const jackModeBtn = document.getElementById("jackModeBtn");
+
       const errorPane = document.getElementById("errorPane");
       const errorText = document.getElementById("errorText");
 
@@ -203,27 +187,57 @@
 
       const checkmark = document.getElementById("checkmark");
 
-      /** ----- Push-up detection config (tweakable) ----- **/
-      const CONF_MIN = 0.55;        // landmark visibility/presence gate
-      const DOWN_ANGLE = 105;       // elbow angle <= this => "down"
-      const UP_ANGLE = 165;         // elbow angle >= this => "up"
-      const SHOW_CHECK_MS = 800;    // checkmark flash duration
+      /** -------------------- MODE -------------------- **/
+      const Mode = Object.freeze({ PUSHUPS: "pushups", JACKS: "jacks" });
+      let mode = Mode.PUSHUPS;
 
-      // “Plank gate” heuristics (normalized coords: x/y are 0..1)
-      const MAX_SHOULDER_HIP_Y_DIFF = 0.22;
-      const MAX_HIP_ANKLE_Y_DIFF = 0.30;
-      const MIN_WRIST_BELOW_SHOULDER = 0.04;
+      function setMode(nextMode) {
+        mode = nextMode;
+
+        pushupModeBtn.classList.toggle("active", mode === Mode.PUSHUPS);
+        jackModeBtn.classList.toggle("active", mode === Mode.JACKS);
+
+        modePill.textContent = `Mode: ${mode === Mode.PUSHUPS ? "Push-ups" : "Jumping jacks"}`;
+        subtitle.textContent =
+          mode === Mode.PUSHUPS
+            ? "Push-ups: side/profile view works best."
+            : "Jumping jacks: stand back so your full body is visible.";
+
+        reset(); // reset counters/state when switching modes
+      }
+
+      /** ----- Shared settings ----- **/
+      const CONF_MIN = 0.55;
+      const SHOW_CHECK_MS = 800;
+
+      /** ----- Push-up detection settings ----- **/
+      const PUSHUP_DOWN_ANGLE = 105; // elbow angle <= this => "down"
+      const PUSHUP_UP_ANGLE = 165;   // elbow angle >= this => "up"
+
+      const PUSHUP_MAX_SHOULDER_HIP_Y_DIFF = 0.22;
+      const PUSHUP_MAX_HIP_ANKLE_Y_DIFF = 0.30;
+      const PUSHUP_MIN_WRIST_BELOW_SHOULDER = 0.04;
+
+      /** ----- Jumping jack detection settings ----- **/
+      // Distances are normalized; ratios are relative to shoulder/hip width (more stable across distances to camera).
+      const JACK_ARMS_OPEN_MULT = 1.6;   // wristDist > shoulderWidth * this
+      const JACK_ARMS_CLOSED_MULT = 1.25; // wristDist < shoulderWidth * this
+
+      const JACK_LEGS_OPEN_MULT = 1.6;   // ankleDist > hipWidth * this
+      const JACK_LEGS_CLOSED_MULT = 1.20; // ankleDist < hipWidth * this
+
+      const JACK_WRISTS_ABOVE_SHOULDERS_MARGIN = 0.06; // wrists higher than shoulders by at least this (y smaller)
+      const JACK_WRISTS_NOT_HIGH_MARGIN = 0.02;        // wrists not meaningfully above shoulders
 
       /** ----- State ----- **/
       let poseLandmarker = null;
       let drawingUtils = null;
-
       let webcamRunning = false;
       let lastVideoTime = -1;
 
       let repCount = 0;
-      let phase = "unknown"; // "up" | "down" | "unknown"
-      let lastAngle = null;
+      let phase = "unknown"; // pushups: up/down ; jacks: open/closed
+      let lastMetric = null; // pushups: elbow angle ; jacks: openness score/ratio text
 
       let checkTimer = null;
 
@@ -231,83 +245,30 @@
         errorText.textContent = message;
         errorPane.classList.remove("hidden");
       }
-
       function hideError() {
         errorPane.classList.add("hidden");
         errorText.textContent = "";
       }
 
       function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+      function hypot2(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
+
+      function lmConf(lm) {
+        const v = (typeof lm.visibility === "number") ? lm.visibility : lm.presence;
+        return (typeof v === "number") ? v : 0;
+      }
 
       function angleDeg(a, b, c) {
-        // angle ABC in degrees, where b is the vertex (elbow)
         const abx = a.x - b.x, aby = a.y - b.y;
         const cbx = c.x - b.x, cby = c.y - b.y;
 
         const dot = abx * cbx + aby * cby;
         const ab = Math.hypot(abx, aby);
         const cb = Math.hypot(cbx, cby);
-
         if (ab < 1e-6 || cb < 1e-6) return null;
 
         const cos = clamp(dot / (ab * cb), -1, 1);
         return Math.acos(cos) * (180 / Math.PI);
-      }
-
-      function lmConf(lm) {
-        // Some builds use visibility, some use presence. Prefer visibility.
-        const v = (typeof lm.visibility === "number") ? lm.visibility : lm.presence;
-        return (typeof v === "number") ? v : 0;
-      }
-
-      function pickSide(landmarks) {
-        // Pick left vs right arm based on average confidence of shoulder/elbow/wrist
-        // Indices follow MediaPipe Pose:
-        // Left: 11 shoulder, 13 elbow, 15 wrist
-        // Right: 12 shoulder, 14 elbow, 16 wrist
-        const L = [11, 13, 15].map(i => lmConf(landmarks[i]));
-        const R = [12, 14, 16].map(i => lmConf(landmarks[i]));
-        const lAvg = (L[0] + L[1] + L[2]) / 3;
-        const rAvg = (R[0] + R[1] + R[2]) / 3;
-        return (lAvg >= rAvg) ? "left" : "right";
-      }
-
-      function getArmPoints(landmarks, side) {
-        const idx = (side === "left")
-          ? { shoulder: 11, elbow: 13, wrist: 15, hip: 23, ankle: 27 }
-          : { shoulder: 12, elbow: 14, wrist: 16, hip: 24, ankle: 28 };
-
-        const shoulder = landmarks[idx.shoulder];
-        const elbow = landmarks[idx.elbow];
-        const wrist = landmarks[idx.wrist];
-        const hip = landmarks[idx.hip];
-        const ankle = landmarks[idx.ankle];
-
-        return { shoulder, elbow, wrist, hip, ankle };
-      }
-
-      function plankGateOk(pts) {
-        const { shoulder, wrist, hip, ankle } = pts;
-
-        // Confidence gate
-        const confOk =
-          lmConf(shoulder) >= CONF_MIN &&
-          lmConf(wrist) >= CONF_MIN &&
-          lmConf(hip) >= CONF_MIN &&
-          lmConf(ankle) >= CONF_MIN;
-
-        if (!confOk) return { ok: false, reason: "low landmark confidence" };
-
-        // Hands should be below shoulder in image (push-up on floor)
-        const wristBelow = (wrist.y - shoulder.y) >= MIN_WRIST_BELOW_SHOULDER;
-
-        // Rough “plank” alignment: shoulder/hip and hip/ankle not wildly separated in Y
-        const shHip = Math.abs(shoulder.y - hip.y) <= MAX_SHOULDER_HIP_Y_DIFF;
-        const hipAnk = Math.abs(hip.y - ankle.y) <= MAX_HIP_ANKLE_Y_DIFF;
-
-        const ok = wristBelow && shHip && hipAnk;
-        const reason = ok ? "ok" : `wristBelow=${wristBelow}, shHip=${shHip}, hipAnk=${hipAnk}`;
-        return { ok, reason };
       }
 
       function flashCheckmark() {
@@ -326,50 +287,185 @@
       function drawPose(landmarks) {
         resizeCanvasToVideo();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Draw landmarks + connections (mirrored via CSS, so draw in normal coords)
         drawingUtils.drawLandmarks(landmarks, { radius: 3 });
         drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS);
       }
 
-      function updateHUD({ angle, phaseText, gate }) {
-        hud1.textContent = `Reps: ${repCount}`;
-        hud2.textContent = `Angle: ${angle == null ? "—" : angle.toFixed(0) + "°"} | Phase: ${phaseText}`;
-        hud3.textContent = `Plank gate: ${gate}`;
+      function updateHUD({ reps, metricLabel, metricValue, phaseText, gate }) {
+        hud1.textContent = `Reps: ${reps}`;
+        hud2.textContent = `${metricLabel}: ${metricValue} | Phase: ${phaseText}`;
+        hud3.textContent = `Gate: ${gate}`;
       }
 
-      function processPose(landmarks) {
+      /** -------------------- PUSH-UP LOGIC -------------------- **/
+      function pickSide(landmarks) {
+        // Choose left vs right based on shoulder/elbow/wrist confidence
+        const L = [11, 13, 15].map(i => lmConf(landmarks[i]));
+        const R = [12, 14, 16].map(i => lmConf(landmarks[i]));
+        const lAvg = (L[0] + L[1] + L[2]) / 3;
+        const rAvg = (R[0] + R[1] + R[2]) / 3;
+        return (lAvg >= rAvg) ? "left" : "right";
+      }
+
+      function getArmPoints(landmarks, side) {
+        const idx = (side === "left")
+          ? { shoulder: 11, elbow: 13, wrist: 15, hip: 23, ankle: 27 }
+          : { shoulder: 12, elbow: 14, wrist: 16, hip: 24, ankle: 28 };
+
+        return {
+          shoulder: landmarks[idx.shoulder],
+          elbow: landmarks[idx.elbow],
+          wrist: landmarks[idx.wrist],
+          hip: landmarks[idx.hip],
+          ankle: landmarks[idx.ankle],
+        };
+      }
+
+      function pushupGateOk(pts) {
+        const { shoulder, wrist, hip, ankle } = pts;
+
+        const confOk =
+          lmConf(shoulder) >= CONF_MIN &&
+          lmConf(wrist) >= CONF_MIN &&
+          lmConf(hip) >= CONF_MIN &&
+          lmConf(ankle) >= CONF_MIN;
+
+        if (!confOk) return { ok: false, reason: "low landmark confidence" };
+
+        const wristBelow = (wrist.y - shoulder.y) >= PUSHUP_MIN_WRIST_BELOW_SHOULDER;
+        const shHip = Math.abs(shoulder.y - hip.y) <= PUSHUP_MAX_SHOULDER_HIP_Y_DIFF;
+        const hipAnk = Math.abs(hip.y - ankle.y) <= PUSHUP_MAX_HIP_ANKLE_Y_DIFF;
+
+        const ok = wristBelow && shHip && hipAnk;
+        return { ok, reason: ok ? "ok" : `wristBelow=${wristBelow}, shHip=${shHip}, hipAnk=${hipAnk}` };
+      }
+
+      function processPushups(landmarks) {
         const side = pickSide(landmarks);
         const pts = getArmPoints(landmarks, side);
+        const gate = pushupGateOk(pts);
 
-        const gate = plankGateOk(pts);
         if (!gate.ok) {
-          updateHUD({ angle: lastAngle, phaseText: phase, gate: gate.reason });
+          updateHUD({
+            reps: repCount,
+            metricLabel: "Elbow",
+            metricValue: lastMetric == null ? "—" : `${lastMetric.toFixed(0)}°`,
+            phaseText: phase,
+            gate: gate.reason
+          });
           return;
         }
 
         const a = angleDeg(pts.shoulder, pts.elbow, pts.wrist);
         if (a == null) {
-          updateHUD({ angle: lastAngle, phaseText: phase, gate: "bad angle calc" });
+          updateHUD({ reps: repCount, metricLabel: "Elbow", metricValue: "—", phaseText: phase, gate: "bad angle" });
           return;
         }
 
-        // Light smoothing to reduce jitter
-        if (lastAngle == null) lastAngle = a;
-        else lastAngle = 0.65 * lastAngle + 0.35 * a;
+        // Smooth
+        if (lastMetric == null) lastMetric = a;
+        else lastMetric = 0.65 * lastMetric + 0.35 * a;
 
-        // State machine: up -> down -> up == 1 rep
-        if ((phase === "unknown" || phase === "up") && lastAngle <= DOWN_ANGLE) {
+        // State machine: up -> down -> up
+        if ((phase === "unknown" || phase === "up") && lastMetric <= PUSHUP_DOWN_ANGLE) {
           phase = "down";
-        } else if (phase === "down" && lastAngle >= UP_ANGLE) {
+        } else if (phase === "down" && lastMetric >= PUSHUP_UP_ANGLE) {
           phase = "up";
           repCount += 1;
           flashCheckmark();
-        } else if (phase === "unknown" && lastAngle >= UP_ANGLE) {
+        } else if (phase === "unknown" && lastMetric >= PUSHUP_UP_ANGLE) {
           phase = "up";
         }
 
-        updateHUD({ angle: lastAngle, phaseText: phase, gate: "ok" });
+        updateHUD({
+          reps: repCount,
+          metricLabel: "Elbow",
+          metricValue: `${lastMetric.toFixed(0)}°`,
+          phaseText: phase,
+          gate: "ok"
+        });
+      }
+
+      /** -------------------- JUMPING JACK LOGIC -------------------- **/
+      function jackGateOk(landmarks) {
+        // Require key points: shoulders, wrists, hips, ankles
+        const idxs = [11,12,15,16,23,24,27,28];
+        for (const i of idxs) {
+          if (lmConf(landmarks[i]) < CONF_MIN) return { ok: false, reason: "low landmark confidence" };
+        }
+        return { ok: true, reason: "ok" };
+      }
+
+      function processJumpingJacks(landmarks) {
+        const gate = jackGateOk(landmarks);
+        if (!gate.ok) {
+          updateHUD({
+            reps: repCount,
+            metricLabel: "Open",
+            metricValue: lastMetric == null ? "—" : lastMetric,
+            phaseText: phase,
+            gate: gate.reason
+          });
+          return;
+        }
+
+        const lShoulder = landmarks[11], rShoulder = landmarks[12];
+        const lWrist = landmarks[15], rWrist = landmarks[16];
+        const lHip = landmarks[23], rHip = landmarks[24];
+        const lAnkle = landmarks[27], rAnkle = landmarks[28];
+
+        const shoulderWidth = hypot2(lShoulder.x, lShoulder.y, rShoulder.x, rShoulder.y);
+        const hipWidth = hypot2(lHip.x, lHip.y, rHip.x, rHip.y);
+
+        const wristDist = hypot2(lWrist.x, lWrist.y, rWrist.x, rWrist.y);
+        const ankleDist = hypot2(lAnkle.x, lAnkle.y, rAnkle.x, rAnkle.y);
+
+        const shouldersY = (lShoulder.y + rShoulder.y) / 2;
+        const wristsY = (lWrist.y + rWrist.y) / 2;
+
+        const armsOpen = wristDist > shoulderWidth * JACK_ARMS_OPEN_MULT;
+        const armsClosed = wristDist < shoulderWidth * JACK_ARMS_CLOSED_MULT;
+
+        const legsOpen = ankleDist > hipWidth * JACK_LEGS_OPEN_MULT;
+        const legsClosed = ankleDist < hipWidth * JACK_LEGS_CLOSED_MULT;
+
+        const wristsAboveShoulders = wristsY < (shouldersY - JACK_WRISTS_ABOVE_SHOULDERS_MARGIN);
+        const wristsNotHigh = wristsY > (shouldersY - JACK_WRISTS_NOT_HIGH_MARGIN);
+
+        const openPose = armsOpen && legsOpen && wristsAboveShoulders;
+        const closedPose = armsClosed && legsClosed && wristsNotHigh;
+
+        // Metric text (helps tuning)
+        const armsRatio = (shoulderWidth > 1e-6) ? wristDist / shoulderWidth : 0;
+        const legsRatio = (hipWidth > 1e-6) ? ankleDist / hipWidth : 0;
+        lastMetric = `A:${armsRatio.toFixed(2)} L:${legsRatio.toFixed(2)}`;
+
+        // State machine: closed -> open -> closed counts 1 rep
+        if (phase === "unknown") {
+          phase = closedPose ? "closed" : (openPose ? "open" : "unknown");
+        } else if (phase === "closed") {
+          if (openPose) phase = "open";
+        } else if (phase === "open") {
+          if (closedPose) {
+            phase = "closed";
+            repCount += 1;
+            flashCheckmark();
+          }
+        }
+
+        updateHUD({
+          reps: repCount,
+          metricLabel: "Open",
+          metricValue: lastMetric,
+          phaseText: phase,
+          gate: openPose ? "openPose" : (closedPose ? "closedPose" : "in-between")
+        });
+      }
+
+      /** -------------------- Main processing -------------------- **/
+      function processPoseByMode(landmarks) {
+        if (mode === Mode.PUSHUPS) processPushups(landmarks);
+        else processJumpingJacks(landmarks);
       }
 
       async function predictLoop() {
@@ -381,13 +477,19 @@
           const now = performance.now();
           poseLandmarker.detectForVideo(video, now, (result) => {
             if (!result?.landmarks?.length) {
-              updateHUD({ angle: lastAngle, phaseText: phase, gate: "no pose detected" });
+              updateHUD({
+                reps: repCount,
+                metricLabel: mode === Mode.PUSHUPS ? "Elbow" : "Open",
+                metricValue: "—",
+                phaseText: phase,
+                gate: "no pose detected"
+              });
               return;
             }
 
             const person = result.landmarks[0];
             drawPose(person);
-            processPose(person);
+            processPoseByMode(person);
           });
         }
 
@@ -411,16 +513,15 @@
         });
 
         drawingUtils = new DrawingUtils(ctx);
-
         statusPill.textContent = "Model: ready";
         startBtn.disabled = false;
+        pushupModeBtn.disabled = false;
+        jackModeBtn.disabled = false;
       }
 
       async function startCamera() {
         hideError();
 
-        // Camera access requires HTTPS (or http://localhost).
-        // If you open this as a file:// URL, getUserMedia usually fails.
         const constraints = {
           video: {
             facingMode: "user",
@@ -433,19 +534,14 @@
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
 
-        await new Promise((resolve) => {
-          video.onloadedmetadata = () => resolve();
-        });
+        await new Promise((resolve) => { video.onloadedmetadata = () => resolve(); });
 
         webcamRunning = true;
         resetBtn.disabled = false;
         startBtn.textContent = "Camera on";
         startBtn.disabled = true;
 
-        // Reset timing state
         lastVideoTime = -1;
-        lastAngle = null;
-        phase = "unknown";
         resizeCanvasToVideo();
 
         predictLoop();
@@ -454,9 +550,16 @@
       function reset() {
         repCount = 0;
         phase = "unknown";
-        lastAngle = null;
+        lastMetric = null;
         checkmark.classList.remove("show");
-        updateHUD({ angle: null, phaseText: "—", gate: "—" });
+
+        updateHUD({
+          reps: repCount,
+          metricLabel: mode === Mode.PUSHUPS ? "Elbow" : "Open",
+          metricValue: "—",
+          phaseText: "—",
+          gate: "—"
+        });
       }
 
       startBtn.addEventListener("click", async () => {
@@ -472,6 +575,9 @@
 
       resetBtn.addEventListener("click", reset);
 
+      pushupModeBtn.addEventListener("click", () => setMode(Mode.PUSHUPS));
+      jackModeBtn.addEventListener("click", () => setMode(Mode.JACKS));
+
       // Boot
       try {
         if (!navigator.mediaDevices?.getUserMedia) {
@@ -479,7 +585,7 @@
           statusPill.textContent = "Model: unavailable";
         } else {
           await initModel();
-          reset();
+          setMode(Mode.PUSHUPS);
         }
       } catch (e) {
         showError(String(e?.message || e));
@@ -488,3 +594,4 @@
     </script>
   </body>
 </html>
+<!--Code of _elipseday-->
