@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Workout Detector (Push-ups + Jumping Jacks)</title>
+    <title>Workout Detector (Portrait)</title>
     <style>
       :root { color-scheme: dark; }
       body {
@@ -12,16 +12,60 @@
         background: #0b0f14;
         color: #e9eef5;
       }
-      .wrap { display: grid; grid-template-rows: auto 1fr; min-height: 100vh; }
+
+      .wrap { min-height: 100vh; display: grid; grid-template-rows: auto 1fr; }
+
       header {
-        display: flex; gap: 12px; align-items: center; justify-content: space-between;
-        padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.08);
-        background: rgba(255,255,255,0.03); backdrop-filter: blur(10px);
+        padding: 12px 14px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03);
+        backdrop-filter: blur(10px);
+        display: grid;
+        gap: 10px;
       }
-      header .left { display: flex; flex-direction: column; gap: 2px; }
-      header .title { font-weight: 700; font-size: 14px; }
-      header .subtitle { opacity: 0.8; font-size: 12px; }
-      header .right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+
+      .topRow {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .left {
+        display: grid;
+        gap: 4px;
+      }
+      .title { font-weight: 700; font-size: 14px; }
+      .subtitle { opacity: 0.8; font-size: 12px; }
+
+      .pills {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .pill {
+        padding: 8px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.04);
+        font-size: 12px;
+        opacity: 0.9;
+        white-space: nowrap;
+      }
+
+      /* 3 lines of controls */
+      .controls {
+        display: grid;
+        gap: 8px;
+        justify-items: end;
+      }
+      .toggleGroup {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
+
       button {
         border: 1px solid rgba(255,255,255,0.16);
         background: rgba(255,255,255,0.06);
@@ -32,64 +76,87 @@
         font-weight: 600;
       }
       button:disabled { opacity: 0.5; cursor: not-allowed; }
-      .pill {
-        padding: 8px 10px;
-        border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.12);
-        background: rgba(255,255,255,0.04);
-        font-size: 12px;
-        opacity: 0.9;
-        white-space: nowrap;
-      }
-      .toggleGroup { display: flex; gap: 8px; }
       .toggleGroup button.active {
         border-color: rgba(0, 255, 140, 0.35);
         background: rgba(0, 180, 90, 0.18);
       }
 
       main { display: grid; place-items: center; padding: 14px; }
+
+      /* Portrait stage: height-driven so it fits a phone screen nicely */
       .stage {
-        width: min(980px, 100%);
-        aspect-ratio: 16 / 9;
         position: relative;
+        height: min(calc(100vh - 210px), 84vh);
+        aspect-ratio: 9 / 16;
+        width: auto;
+        max-width: 96vw;
+
         border-radius: 16px;
         overflow: hidden;
         border: 1px solid rgba(255,255,255,0.10);
         background: #0a0d12;
       }
+
       video, canvas {
-        position: absolute; inset: 0; width: 100%; height: 100%;
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
         object-fit: cover;
-        transform: scaleX(-1); /* mirror like a selfie camera */
+        transform: scaleX(-1); /* mirror like selfie */
       }
+
       .hud {
-        position: absolute; left: 12px; top: 12px;
-        display: grid; gap: 8px; z-index: 5;
+        position: absolute;
+        left: 12px;
+        top: 12px;
+        display: grid;
+        gap: 8px;
+        z-index: 5;
       }
       .badge {
-        padding: 8px 10px; border-radius: 12px;
+        padding: 8px 10px;
+        border-radius: 12px;
         background: rgba(0,0,0,0.45);
         border: 1px solid rgba(255,255,255,0.10);
-        font-size: 12px; line-height: 1.25;
+        font-size: 12px;
+        line-height: 1.25;
       }
+
       .check {
-        position: absolute; right: 14px; top: 14px; z-index: 6;
-        width: 70px; height: 70px; border-radius: 18px;
-        display: grid; place-items: center;
+        position: absolute;
+        right: 14px;
+        top: 14px;
+        z-index: 6;
+        width: 70px;
+        height: 70px;
+        border-radius: 18px;
+        display: grid;
+        place-items: center;
         background: rgba(0, 180, 90, 0.18);
         border: 1px solid rgba(0, 255, 140, 0.35);
-        opacity: 0; transform: scale(0.92);
+        opacity: 0;
+        transform: scale(0.92);
         transition: opacity 160ms ease, transform 160ms ease;
         backdrop-filter: blur(8px);
       }
       .check.show { opacity: 1; transform: scale(1); }
       .check svg { width: 42px; height: 42px; }
+
       .error {
-        position: absolute; inset: 0; display: grid; place-items: center;
-        padding: 18px; text-align: center; background: rgba(0,0,0,0.6); z-index: 10;
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+        text-align: center;
+        background: rgba(0,0,0,0.6);
+        z-index: 10;
       }
       .error .box {
-        max-width: 560px; padding: 14px 14px; border-radius: 14px;
+        max-width: 560px;
+        padding: 14px 14px;
+        border-radius: 14px;
         border: 1px solid rgba(255,255,255,0.12);
         background: rgba(20, 24, 32, 0.85);
       }
@@ -102,24 +169,27 @@
   <body>
     <div class="wrap">
       <header>
-        <div class="left">
-          <div class="title">Workout Detector</div>
-          <div class="subtitle" id="subtitle">
-            Push-ups: side/profile view works best. Jumping jacks: full body in frame.
-          </div>
-        </div>
-
-        <div class="right">
-          <div class="pill" id="statusPill">Model: loading…</div>
-          <div class="pill" id="modePill">Mode: Push-ups</div>
-
-          <div class="toggleGroup" aria-label="Mode selection">
-            <button id="pushupModeBtn" class="active" disabled>Push-ups</button>
-            <button id="jackModeBtn" disabled>Jumping jacks</button>
+        <div class="topRow">
+          <div class="left">
+            <div class="title">Workout Detector</div>
+            <div class="subtitle" id="subtitle">
+              Push-ups: side/profile view works best. Jumping jacks: full body in frame.
+            </div>
+            <div class="pills">
+              <div class="pill" id="statusPill">Model: loading…</div>
+              <div class="pill" id="modePill">Mode: Push-ups</div>
+            </div>
           </div>
 
-          <button id="startBtn" disabled>Enable camera</button>
-          <button id="resetBtn" disabled>Reset</button>
+          <!-- 3 lines: (1) mode buttons, (2) enable camera, (3) reset -->
+          <div class="controls">
+            <div class="toggleGroup" aria-label="Mode selection">
+              <button id="pushupModeBtn" class="active" disabled>Push-ups</button>
+              <button id="jackModeBtn" disabled>Jumping jacks</button>
+            </div>
+            <button id="startBtn" disabled>Enable camera</button>
+            <button id="resetBtn" disabled>Reset</button>
+          </div>
         </div>
       </header>
 
@@ -170,7 +240,6 @@
 
       const startBtn = document.getElementById("startBtn");
       const resetBtn = document.getElementById("resetBtn");
-
       const pushupModeBtn = document.getElementById("pushupModeBtn");
       const jackModeBtn = document.getElementById("jackModeBtn");
 
@@ -187,7 +256,6 @@
 
       const checkmark = document.getElementById("checkmark");
 
-      /** -------------------- MODE -------------------- **/
       const Mode = Object.freeze({ PUSHUPS: "pushups", JACKS: "jacks" });
       let mode = Mode.PUSHUPS;
 
@@ -203,41 +271,37 @@
             ? "Push-ups: side/profile view works best."
             : "Jumping jacks: stand back so your full body is visible.";
 
-        reset(); // reset counters/state when switching modes
+        reset();
       }
 
-      /** ----- Shared settings ----- **/
+      /** Shared thresholds **/
       const CONF_MIN = 0.55;
       const SHOW_CHECK_MS = 800;
 
-      /** ----- Push-up detection settings ----- **/
-      const PUSHUP_DOWN_ANGLE = 105; // elbow angle <= this => "down"
-      const PUSHUP_UP_ANGLE = 165;   // elbow angle >= this => "up"
-
+      /** Push-ups **/
+      const PUSHUP_DOWN_ANGLE = 105;
+      const PUSHUP_UP_ANGLE = 165;
       const PUSHUP_MAX_SHOULDER_HIP_Y_DIFF = 0.22;
       const PUSHUP_MAX_HIP_ANKLE_Y_DIFF = 0.30;
       const PUSHUP_MIN_WRIST_BELOW_SHOULDER = 0.04;
 
-      /** ----- Jumping jack detection settings ----- **/
-      // Distances are normalized; ratios are relative to shoulder/hip width (more stable across distances to camera).
-      const JACK_ARMS_OPEN_MULT = 1.6;   // wristDist > shoulderWidth * this
-      const JACK_ARMS_CLOSED_MULT = 1.25; // wristDist < shoulderWidth * this
+      /** Jumping jacks **/
+      const JACK_ARMS_OPEN_MULT = 1.6;
+      const JACK_ARMS_CLOSED_MULT = 1.25;
+      const JACK_LEGS_OPEN_MULT = 1.6;
+      const JACK_LEGS_CLOSED_MULT = 1.20;
+      const JACK_WRISTS_ABOVE_SHOULDERS_MARGIN = 0.06;
+      const JACK_WRISTS_NOT_HIGH_MARGIN = 0.02;
 
-      const JACK_LEGS_OPEN_MULT = 1.6;   // ankleDist > hipWidth * this
-      const JACK_LEGS_CLOSED_MULT = 1.20; // ankleDist < hipWidth * this
-
-      const JACK_WRISTS_ABOVE_SHOULDERS_MARGIN = 0.06; // wrists higher than shoulders by at least this (y smaller)
-      const JACK_WRISTS_NOT_HIGH_MARGIN = 0.02;        // wrists not meaningfully above shoulders
-
-      /** ----- State ----- **/
       let poseLandmarker = null;
       let drawingUtils = null;
+
       let webcamRunning = false;
       let lastVideoTime = -1;
 
       let repCount = 0;
-      let phase = "unknown"; // pushups: up/down ; jacks: open/closed
-      let lastMetric = null; // pushups: elbow angle ; jacks: openness score/ratio text
+      let phase = "unknown";
+      let lastMetric = null;
 
       let checkTimer = null;
 
@@ -278,8 +342,8 @@
       }
 
       function resizeCanvasToVideo() {
-        const w = video.videoWidth || 1280;
-        const h = video.videoHeight || 720;
+        const w = video.videoWidth || 720;
+        const h = video.videoHeight || 1280;
         if (canvas.width !== w) canvas.width = w;
         if (canvas.height !== h) canvas.height = h;
       }
@@ -297,9 +361,8 @@
         hud3.textContent = `Gate: ${gate}`;
       }
 
-      /** -------------------- PUSH-UP LOGIC -------------------- **/
+      /** Push-up logic **/
       function pickSide(landmarks) {
-        // Choose left vs right based on shoulder/elbow/wrist confidence
         const L = [11, 13, 15].map(i => lmConf(landmarks[i]));
         const R = [12, 14, 16].map(i => lmConf(landmarks[i]));
         const lAvg = (L[0] + L[1] + L[2]) / 3;
@@ -362,11 +425,9 @@
           return;
         }
 
-        // Smooth
         if (lastMetric == null) lastMetric = a;
         else lastMetric = 0.65 * lastMetric + 0.35 * a;
 
-        // State machine: up -> down -> up
         if ((phase === "unknown" || phase === "up") && lastMetric <= PUSHUP_DOWN_ANGLE) {
           phase = "down";
         } else if (phase === "down" && lastMetric >= PUSHUP_UP_ANGLE) {
@@ -386,9 +447,8 @@
         });
       }
 
-      /** -------------------- JUMPING JACK LOGIC -------------------- **/
+      /** Jumping jacks logic **/
       function jackGateOk(landmarks) {
-        // Require key points: shoulders, wrists, hips, ankles
         const idxs = [11,12,15,16,23,24,27,28];
         for (const i of idxs) {
           if (lmConf(landmarks[i]) < CONF_MIN) return { ok: false, reason: "low landmark confidence" };
@@ -435,12 +495,10 @@
         const openPose = armsOpen && legsOpen && wristsAboveShoulders;
         const closedPose = armsClosed && legsClosed && wristsNotHigh;
 
-        // Metric text (helps tuning)
         const armsRatio = (shoulderWidth > 1e-6) ? wristDist / shoulderWidth : 0;
         const legsRatio = (hipWidth > 1e-6) ? ankleDist / hipWidth : 0;
         lastMetric = `A:${armsRatio.toFixed(2)} L:${legsRatio.toFixed(2)}`;
 
-        // State machine: closed -> open -> closed counts 1 rep
         if (phase === "unknown") {
           phase = closedPose ? "closed" : (openPose ? "open" : "unknown");
         } else if (phase === "closed") {
@@ -462,7 +520,6 @@
         });
       }
 
-      /** -------------------- Main processing -------------------- **/
       function processPoseByMode(landmarks) {
         if (mode === Mode.PUSHUPS) processPushups(landmarks);
         else processJumpingJacks(landmarks);
@@ -501,10 +558,7 @@
         const vision = await FilesetResolver.forVisionTasks(WASM_ROOT);
 
         poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: MODEL_URL,
-            delegate: "GPU",
-          },
+          baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
           runningMode: "VIDEO",
           numPoses: 1,
           minPoseDetectionConfidence: 0.5,
@@ -522,11 +576,13 @@
       async function startCamera() {
         hideError();
 
+        // Portrait-friendly constraints
         const constraints = {
           video: {
             facingMode: "user",
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
+            width: { ideal: 720 },
+            height: { ideal: 1280 },
+            aspectRatio: { ideal: 9 / 16 }
           },
           audio: false,
         };
@@ -543,7 +599,6 @@
 
         lastVideoTime = -1;
         resizeCanvasToVideo();
-
         predictLoop();
       }
 
@@ -578,7 +633,6 @@
       pushupModeBtn.addEventListener("click", () => setMode(Mode.PUSHUPS));
       jackModeBtn.addEventListener("click", () => setMode(Mode.JACKS));
 
-      // Boot
       try {
         if (!navigator.mediaDevices?.getUserMedia) {
           showError("This browser does not support camera access (getUserMedia).");
@@ -594,4 +648,3 @@
     </script>
   </body>
 </html>
-<!--Code of _elipseday-->
