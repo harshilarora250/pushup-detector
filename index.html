@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Push-up Detector (Camera)</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        background: #0b0f14;
+        color: #e9eef5;
+      }
+      .wrap {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        min-height: 100vh;
+      }
+      header {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 14px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03);
+        backdrop-filter: blur(10px);
+      }
+      header .left { display: flex; flex-direction: column; gap: 2px; }
+      header .title { font-weight: 700; font-size: 14px; }
+      header .subtitle { opacity: 0.8; font-size: 12px; }
+      header .right { display: flex; gap: 10px; align-items: center; }
+      button {
+        border: 1px solid rgba(255,255,255,0.16);
+        background: rgba(255,255,255,0.06);
+        color: #e9eef5;
+        padding: 10px 12px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+      .pill {
+        padding: 8px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.04);
+        font-size: 12px;
+        opacity: 0.9;
+      }
+      main {
+        display: grid;
+        place-items: center;
+        padding: 14px;
+      }
+      .stage {
+        width: min(980px, 100%);
+        aspect-ratio: 16 / 9;
+        position: relative;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: #0a0d12;
+      }
+      video, canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1); /* mirror like a selfie camera */
+      }
+      .hud {
+        position: absolute;
+        left: 12px;
+        top: 12px;
+        display: grid;
+        gap: 8px;
+        z-index: 5;
+      }
+      .badge {
+        padding: 8px 10px;
+        border-radius: 12px;
+        background: rgba(0,0,0,0.45);
+        border: 1px solid rgba(255,255,255,0.10);
+        font-size: 12px;
+        line-height: 1.25;
+      }
+      .check {
+        position: absolute;
+        right: 14px;
+        top: 14px;
+        z-index: 6;
+        width: 70px;
+        height: 70px;
+        border-radius: 18px;
+        display: grid;
+        place-items: center;
+        background: rgba(0, 180, 90, 0.18);
+        border: 1px solid rgba(0, 255, 140, 0.35);
+        opacity: 0;
+        transform: scale(0.92);
+        transition: opacity 160ms ease, transform 160ms ease;
+        backdrop-filter: blur(8px);
+      }
+      .check.show {
+        opacity: 1;
+        transform: scale(1);
+      }
+      .check svg { width: 42px; height: 42px; }
+      .error {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+        text-align: center;
+        background: rgba(0,0,0,0.6);
+        z-index: 10;
+      }
+      .error .box {
+        max-width: 560px;
+        padding: 14px 14px;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(20, 24, 32, 0.85);
+      }
+      .error .box h2 { margin: 0 0 8px; font-size: 16px; }
+      .error .box p  { margin: 0; opacity: 0.85; font-size: 13px; line-height: 1.4; }
+      .hidden { display: none; }
+    </style>
+  </head>
+
+  <body>
+    <div class="wrap">
+      <header>
+        <div class="left">
+          <div class="title">Push-up Detector</div>
+          <div class="subtitle">Tip: place the camera to the side (profile view) for best results.</div>
+        </div>
+        <div class="right">
+          <div class="pill" id="statusPill">Model: loading…</div>
+          <button id="startBtn" disabled>Enable camera</button>
+          <button id="resetBtn" disabled>Reset</button>
+        </div>
+      </header>
+
+      <main>
+        <div class="stage">
+          <video id="video" autoplay playsinline muted></video>
+          <canvas id="overlay"></canvas>
+
+          <div class="hud">
+            <div class="badge" id="hud1">Reps: 0</div>
+            <div class="badge" id="hud2">Angle: — | Phase: —</div>
+            <div class="badge" id="hud3">Plank gate: —</div>
+          </div>
+
+          <div class="check" id="checkmark" aria-label="Push-up detected">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M20 7L10.5 16.5L4 10"
+                stroke="rgba(235,255,245,0.95)"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+
+          <div class="error hidden" id="errorPane">
+            <div class="box">
+              <h2>Could not start</h2>
+              <p id="errorText"></p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script type="module">
+      import { PoseLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.skypack.dev/@mediapipe/tasks-vision@0.10.0";
+
+      const MODEL_URL =
+        "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
+      const WASM_ROOT =
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm";
+
+      const statusPill = document.getElementById("statusPill");
+      const startBtn = document.getElementById("startBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const errorPane = document.getElementById("errorPane");
+      const errorText = document.getElementById("errorText");
+
+      const video = document.getElementById("video");
+      const canvas = document.getElementById("overlay");
+      const ctx = canvas.getContext("2d");
+
+      const hud1 = document.getElementById("hud1");
+      const hud2 = document.getElementById("hud2");
+      const hud3 = document.getElementById("hud3");
+
+      const checkmark = document.getElementById("checkmark");
+
+      /** ----- Push-up detection config (tweakable) ----- **/
+      const CONF_MIN = 0.55;        // landmark visibility/presence gate
+      const DOWN_ANGLE = 105;       // elbow angle <= this => "down"
+      const UP_ANGLE = 165;         // elbow angle >= this => "up"
+      const SHOW_CHECK_MS = 800;    // checkmark flash duration
+
+      // “Plank gate” heuristics (normalized coords: x/y are 0..1)
+      const MAX_SHOULDER_HIP_Y_DIFF = 0.22;
+      const MAX_HIP_ANKLE_Y_DIFF = 0.30;
+      const MIN_WRIST_BELOW_SHOULDER = 0.04;
+
+      /** ----- State ----- **/
+      let poseLandmarker = null;
+      let drawingUtils = null;
+
+      let webcamRunning = false;
+      let lastVideoTime = -1;
+
+      let repCount = 0;
+      let phase = "unknown"; // "up" | "down" | "unknown"
+      let lastAngle = null;
+
+      let checkTimer = null;
+
+      function showError(message) {
+        errorText.textContent = message;
+        errorPane.classList.remove("hidden");
+      }
+
+      function hideError() {
+        errorPane.classList.add("hidden");
+        errorText.textContent = "";
+      }
+
+      function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+      function angleDeg(a, b, c) {
+        // angle ABC in degrees, where b is the vertex (elbow)
+        const abx = a.x - b.x, aby = a.y - b.y;
+        const cbx = c.x - b.x, cby = c.y - b.y;
+
+        const dot = abx * cbx + aby * cby;
+        const ab = Math.hypot(abx, aby);
+        const cb = Math.hypot(cbx, cby);
+
+        if (ab < 1e-6 || cb < 1e-6) return null;
+
+        const cos = clamp(dot / (ab * cb), -1, 1);
+        return Math.acos(cos) * (180 / Math.PI);
+      }
+
+      function lmConf(lm) {
+        // Some builds use visibility, some use presence. Prefer visibility.
+        const v = (typeof lm.visibility === "number") ? lm.visibility : lm.presence;
+        return (typeof v === "number") ? v : 0;
+      }
+
+      function pickSide(landmarks) {
+        // Pick left vs right arm based on average confidence of shoulder/elbow/wrist
+        // Indices follow MediaPipe Pose:
+        // Left: 11 shoulder, 13 elbow, 15 wrist
+        // Right: 12 shoulder, 14 elbow, 16 wrist
+        const L = [11, 13, 15].map(i => lmConf(landmarks[i]));
+        const R = [12, 14, 16].map(i => lmConf(landmarks[i]));
+        const lAvg = (L[0] + L[1] + L[2]) / 3;
+        const rAvg = (R[0] + R[1] + R[2]) / 3;
+        return (lAvg >= rAvg) ? "left" : "right";
+      }
+
+      function getArmPoints(landmarks, side) {
+        const idx = (side === "left")
+          ? { shoulder: 11, elbow: 13, wrist: 15, hip: 23, ankle: 27 }
+          : { shoulder: 12, elbow: 14, wrist: 16, hip: 24, ankle: 28 };
+
+        const shoulder = landmarks[idx.shoulder];
+        const elbow = landmarks[idx.elbow];
+        const wrist = landmarks[idx.wrist];
+        const hip = landmarks[idx.hip];
+        const ankle = landmarks[idx.ankle];
+
+        return { shoulder, elbow, wrist, hip, ankle };
+      }
+
+      function plankGateOk(pts) {
+        const { shoulder, wrist, hip, ankle } = pts;
+
+        // Confidence gate
+        const confOk =
+          lmConf(shoulder) >= CONF_MIN &&
+          lmConf(wrist) >= CONF_MIN &&
+          lmConf(hip) >= CONF_MIN &&
+          lmConf(ankle) >= CONF_MIN;
+
+        if (!confOk) return { ok: false, reason: "low landmark confidence" };
+
+        // Hands should be below shoulder in image (push-up on floor)
+        const wristBelow = (wrist.y - shoulder.y) >= MIN_WRIST_BELOW_SHOULDER;
+
+        // Rough “plank” alignment: shoulder/hip and hip/ankle not wildly separated in Y
+        const shHip = Math.abs(shoulder.y - hip.y) <= MAX_SHOULDER_HIP_Y_DIFF;
+        const hipAnk = Math.abs(hip.y - ankle.y) <= MAX_HIP_ANKLE_Y_DIFF;
+
+        const ok = wristBelow && shHip && hipAnk;
+        const reason = ok ? "ok" : `wristBelow=${wristBelow}, shHip=${shHip}, hipAnk=${hipAnk}`;
+        return { ok, reason };
+      }
+
+      function flashCheckmark() {
+        checkmark.classList.add("show");
+        if (checkTimer) clearTimeout(checkTimer);
+        checkTimer = setTimeout(() => checkmark.classList.remove("show"), SHOW_CHECK_MS);
+      }
+
+      function resizeCanvasToVideo() {
+        const w = video.videoWidth || 1280;
+        const h = video.videoHeight || 720;
+        if (canvas.width !== w) canvas.width = w;
+        if (canvas.height !== h) canvas.height = h;
+      }
+
+      function drawPose(landmarks) {
+        resizeCanvasToVideo();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw landmarks + connections (mirrored via CSS, so draw in normal coords)
+        drawingUtils.drawLandmarks(landmarks, { radius: 3 });
+        drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS);
+      }
+
+      function updateHUD({ angle, phaseText, gate }) {
+        hud1.textContent = `Reps: ${repCount}`;
+        hud2.textContent = `Angle: ${angle == null ? "—" : angle.toFixed(0) + "°"} | Phase: ${phaseText}`;
+        hud3.textContent = `Plank gate: ${gate}`;
+      }
+
+      function processPose(landmarks) {
+        const side = pickSide(landmarks);
+        const pts = getArmPoints(landmarks, side);
+
+        const gate = plankGateOk(pts);
+        if (!gate.ok) {
+          updateHUD({ angle: lastAngle, phaseText: phase, gate: gate.reason });
+          return;
+        }
+
+        const a = angleDeg(pts.shoulder, pts.elbow, pts.wrist);
+        if (a == null) {
+          updateHUD({ angle: lastAngle, phaseText: phase, gate: "bad angle calc" });
+          return;
+        }
+
+        // Light smoothing to reduce jitter
+        if (lastAngle == null) lastAngle = a;
+        else lastAngle = 0.65 * lastAngle + 0.35 * a;
+
+        // State machine: up -> down -> up == 1 rep
+        if ((phase === "unknown" || phase === "up") && lastAngle <= DOWN_ANGLE) {
+          phase = "down";
+        } else if (phase === "down" && lastAngle >= UP_ANGLE) {
+          phase = "up";
+          repCount += 1;
+          flashCheckmark();
+        } else if (phase === "unknown" && lastAngle >= UP_ANGLE) {
+          phase = "up";
+        }
+
+        updateHUD({ angle: lastAngle, phaseText: phase, gate: "ok" });
+      }
+
+      async function predictLoop() {
+        if (!webcamRunning) return;
+
+        if (video.currentTime !== lastVideoTime) {
+          lastVideoTime = video.currentTime;
+
+          const now = performance.now();
+          poseLandmarker.detectForVideo(video, now, (result) => {
+            if (!result?.landmarks?.length) {
+              updateHUD({ angle: lastAngle, phaseText: phase, gate: "no pose detected" });
+              return;
+            }
+
+            const person = result.landmarks[0];
+            drawPose(person);
+            processPose(person);
+          });
+        }
+
+        requestAnimationFrame(predictLoop);
+      }
+
+      async function initModel() {
+        statusPill.textContent = "Model: loading…";
+        const vision = await FilesetResolver.forVisionTasks(WASM_ROOT);
+
+        poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: MODEL_URL,
+            delegate: "GPU",
+          },
+          runningMode: "VIDEO",
+          numPoses: 1,
+          minPoseDetectionConfidence: 0.5,
+          minPosePresenceConfidence: 0.5,
+          minTrackingConfidence: 0.5,
+        });
+
+        drawingUtils = new DrawingUtils(ctx);
+
+        statusPill.textContent = "Model: ready";
+        startBtn.disabled = false;
+      }
+
+      async function startCamera() {
+        hideError();
+
+        // Camera access requires HTTPS (or http://localhost).
+        // If you open this as a file:// URL, getUserMedia usually fails.
+        const constraints = {
+          video: {
+            facingMode: "user",
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+
+        await new Promise((resolve) => {
+          video.onloadedmetadata = () => resolve();
+        });
+
+        webcamRunning = true;
+        resetBtn.disabled = false;
+        startBtn.textContent = "Camera on";
+        startBtn.disabled = true;
+
+        // Reset timing state
+        lastVideoTime = -1;
+        lastAngle = null;
+        phase = "unknown";
+        resizeCanvasToVideo();
+
+        predictLoop();
+      }
+
+      function reset() {
+        repCount = 0;
+        phase = "unknown";
+        lastAngle = null;
+        checkmark.classList.remove("show");
+        updateHUD({ angle: null, phaseText: "—", gate: "—" });
+      }
+
+      startBtn.addEventListener("click", async () => {
+        try {
+          await startCamera();
+        } catch (e) {
+          showError(
+            String(e?.message || e) +
+              "\n\nCommon fixes:\n• Serve over https or localhost\n• Allow camera permission\n• Close other tabs using the camera"
+          );
+        }
+      });
+
+      resetBtn.addEventListener("click", reset);
+
+      // Boot
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          showError("This browser does not support camera access (getUserMedia).");
+          statusPill.textContent = "Model: unavailable";
+        } else {
+          await initModel();
+          reset();
+        }
+      } catch (e) {
+        showError(String(e?.message || e));
+        statusPill.textContent = "Model: failed";
+      }
+    </script>
+  </body>
+</html>
