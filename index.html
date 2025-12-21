@@ -80,7 +80,6 @@
 
       main{display:grid;place-items:center;padding:14px;}
 
-      /* Portrait camera stage */
       .stage{
         position:relative;
         height:min(78vh, 860px);
@@ -91,17 +90,16 @@
         border-radius:16px;
         overflow:hidden;
         border:1px solid rgba(255,255,255,.10);
-        background:#000; /* letterbox bars live here */
+        background:#000; /* letterbox bars */
         touch-action: manipulation;
       }
 
-      /* IMPORTANT: video visible, canvas transparent */
       video{
         position:absolute;
         inset:0;
         width:100%;
         height:100%;
-        object-fit:contain; /* NO CROP (fixes zoomed-in look) */
+        object-fit:contain;  /* show full frame */
         transform:scaleX(-1);
         z-index:1;
       }
@@ -133,7 +131,7 @@
         border:1px solid rgba(255,255,255,.10);
         font-size:12px;
         line-height:1.25;
-        max-width:min(78vw, 340px);
+        max-width:min(78vw, 360px);
         overflow:hidden;
         text-overflow:ellipsis;
         white-space:nowrap;
@@ -199,7 +197,6 @@
             </div>
           </div>
 
-          <!-- 3 lines -->
           <div class="controls">
             <div class="toggleGroup" aria-label="Mode selection">
               <button id="pushupModeBtn" class="active" disabled>Push-ups</button>
@@ -290,31 +287,40 @@
             ? "Push-ups: side/profile view works best."
             : "Jumping jacks: stand back so your full body is visible.";
 
-        reset();
+        reset(true);
       }
 
       /** -------------------- Tuning -------------------- **/
-      const CONF_MIN = 0.55;
+      // Important: full-body workouts often have lower landmark confidence when you're farther away.
+      const CONF_MIN_PUSHUP = 0.55;
+      const CONF_MIN_JACK = 0.35;
+
       const SHOW_CHECK_MS = 700;
 
-      // Reduce CPU load -> makes mobile responsive
+      // Keep mobile responsive
       const TARGET_INFER_FPS = 15;
       const MIN_INFER_MS = 1000 / TARGET_INFER_FPS;
 
-      // Push-ups
-      const PUSHUP_DOWN_ANGLE = 105;
-      const PUSHUP_UP_ANGLE = 165;
-      const PUSHUP_MAX_SHOULDER_HIP_Y_DIFF = 0.22;
-      const PUSHUP_MAX_HIP_ANKLE_Y_DIFF = 0.30;
-      const PUSHUP_MIN_WRIST_BELOW_SHOULDER = 0.04;
+      // Push-ups (slightly loosened)
+      const PUSHUP_DOWN_ANGLE = 110;
+      const PUSHUP_UP_ANGLE = 160;
+      const PUSHUP_MAX_SHOULDER_HIP_Y_DIFF = 0.28;
+      const PUSHUP_MAX_HIP_ANKLE_Y_DIFF = 0.40;
+      const PUSHUP_MIN_WRIST_BELOW_SHOULDER = 0.02;
 
-      // Jumping jacks
-      const JACK_ARMS_OPEN_MULT = 1.6;
-      const JACK_ARMS_CLOSED_MULT = 1.25;
-      const JACK_LEGS_OPEN_MULT = 1.6;
-      const JACK_LEGS_CLOSED_MULT = 1.20;
-      const JACK_WRISTS_ABOVE_SHOULDERS_MARGIN = 0.06;
-      const JACK_WRISTS_NOT_HIGH_MARGIN = 0.02;
+      // Jumping jacks (more tolerant + uses fallback landmarks)
+      // Open thresholds (higher) and closed thresholds (lower) provide hysteresis.
+      const JACK_OPEN_ARMS_RATIO = 1.35;
+      const JACK_CLOSED_ARMS_RATIO = 1.15;
+
+      const JACK_OPEN_LEGS_RATIO = 1.35;
+      const JACK_CLOSED_LEGS_RATIO = 1.15;
+
+      const JACK_ARMS_UP_MARGIN = 0.02;       // wrists/elbows above shoulders by this much (y smaller)
+      const JACK_ARMS_NOT_UP_MARGIN = 0.005;  // basically not above shoulders
+
+      // Smoothing (helps avoid “never exactly hits threshold”)
+      const JACK_EMA_ALPHA = 0.35;
 
       /** -------------------- State -------------------- **/
       let poseLandmarker = null;
@@ -327,6 +333,11 @@
       let repCount = 0;
       let phase = "unknown";
       let lastMetric = null;
+
+      // Jack smoothing state
+      let jackArmsRatioEma = null;
+      let jackLegsRatioEma = null;
+      let jackArmsUpEma = null;
 
       let checkTimer = null;
 
@@ -360,6 +371,10 @@
         if (ab < 1e-6 || cb < 1e-6) return null;
         const cos = clamp(dot / (ab * cb), -1, 1);
         return Math.acos(cos) * (180 / Math.PI);
+      }
+
+      function ema(prev, next, alpha) {
+        return (prev == null) ? next : (prev * (1 - alpha) + next * alpha);
       }
 
       function flashCheckmark() {
@@ -420,10 +435,10 @@
         const { shoulder, wrist, hip, ankle } = pts;
 
         const confOk =
-          lmConf(shoulder) >= CONF_MIN &&
-          lmConf(wrist) >= CONF_MIN &&
-          lmConf(hip) >= CONF_MIN &&
-          lmConf(ankle) >= CONF_MIN;
+          lmConf(shoulder) >= CONF_MIN_PUSHUP &&
+          lmConf(wrist) >= CONF_MIN_PUSHUP &&
+          lmConf(hip) >= CONF_MIN_PUSHUP &&
+          lmConf(ankle) >= CONF_MIN_PUSHUP;
 
         if (!confOk) return { ok: false, reason: "low confidence" };
 
@@ -457,11 +472,9 @@
           return;
         }
 
-        // Smooth
         if (lastMetric == null) lastMetric = a;
         else lastMetric = 0.65 * lastMetric + 0.35 * a;
 
-        // State machine: up -> down -> up
         if ((phase === "unknown" || phase === "up") && lastMetric <= PUSHUP_DOWN_ANGLE) {
           phase = "down";
         } else if (phase === "down" && lastMetric >= PUSHUP_UP_ANGLE) {
@@ -481,11 +494,39 @@
         });
       }
 
-      /** -------------------- Jumping jack detection -------------------- **/
+      /** -------------------- Jumping jack detection (improved) -------------------- **/
+      function bestPoint(landmarks, indices) {
+        // returns { pt, conf, idx }
+        let best = { pt: null, conf: -1, idx: -1 };
+        for (const i of indices) {
+          const c = lmConf(landmarks[i]);
+          if (c > best.conf) best = { pt: landmarks[i], conf: c, idx: i };
+        }
+        return best;
+      }
+
       function jackGateOk(landmarks) {
-        const idxs = [11,12,15,16,23,24,27,28];
-        for (const i of idxs) if (lmConf(landmarks[i]) < CONF_MIN) return { ok: false, reason: "low confidence" };
-        return { ok: true, reason: "ok" };
+        // Shoulders + hips are required; arms and legs can fallback to elbows/knees.
+        const need = [
+          { name: "LShoulder", idx: 11 },
+          { name: "RShoulder", idx: 12 },
+          { name: "LHip", idx: 23 },
+          { name: "RHip", idx: 24 },
+        ];
+        for (const n of need) {
+          if (lmConf(landmarks[n.idx]) < CONF_MIN_JACK) return { ok: false, reason: `low ${n.name}` };
+        }
+
+        const lArm = bestPoint(landmarks, [15, 13]); // wrist or elbow
+        const rArm = bestPoint(landmarks, [16, 14]);
+
+        const lLeg = bestPoint(landmarks, [27, 25]); // ankle or knee
+        const rLeg = bestPoint(landmarks, [28, 26]);
+
+        if (lArm.conf < CONF_MIN_JACK || rArm.conf < CONF_MIN_JACK) return { ok: false, reason: "low arms" };
+        if (lLeg.conf < CONF_MIN_JACK || rLeg.conf < CONF_MIN_JACK) return { ok: false, reason: "low legs" };
+
+        return { ok: true, reason: "ok", lArm, rArm, lLeg, rLeg };
       }
 
       function processJumpingJacks(landmarks) {
@@ -493,7 +534,7 @@
         if (!gate.ok) {
           updateHUD({
             reps: repCount,
-            metricLabel: "Open",
+            metricLabel: "Jacks",
             metricValue: lastMetric == null ? "—" : lastMetric,
             phaseText: phase,
             gate: gate.reason
@@ -502,36 +543,47 @@
         }
 
         const lShoulder = landmarks[11], rShoulder = landmarks[12];
-        const lWrist = landmarks[15], rWrist = landmarks[16];
         const lHip = landmarks[23], rHip = landmarks[24];
-        const lAnkle = landmarks[27], rAnkle = landmarks[28];
+
+        const lArm = gate.lArm.pt, rArm = gate.rArm.pt; // wrist or elbow
+        const lLeg = gate.lLeg.pt, rLeg = gate.rLeg.pt; // ankle or knee
 
         const shoulderWidth = hypot2(lShoulder.x, lShoulder.y, rShoulder.x, rShoulder.y);
         const hipWidth = hypot2(lHip.x, lHip.y, rHip.x, rHip.y);
 
-        const wristDist = hypot2(lWrist.x, lWrist.y, rWrist.x, rWrist.y);
-        const ankleDist = hypot2(lAnkle.x, lAnkle.y, rAnkle.x, rAnkle.y);
+        // Avoid division spikes if widths are tiny (person too far / poor estimate)
+        const safeShoulderW = Math.max(shoulderWidth, 0.08);
+        const safeHipW = Math.max(hipWidth, 0.08);
+
+        const armDist = hypot2(lArm.x, lArm.y, rArm.x, rArm.y);
+        const legDist = hypot2(lLeg.x, lLeg.y, rLeg.x, rLeg.y);
+
+        const armsRatio = armDist / safeShoulderW;
+        const legsRatio = legDist / safeHipW;
 
         const shouldersY = (lShoulder.y + rShoulder.y) / 2;
-        const wristsY = (lWrist.y + rWrist.y) / 2;
+        const armsY = (lArm.y + rArm.y) / 2;
+        const armsUpDelta = (shouldersY - armsY); // positive when arms are above shoulders
 
-        const armsOpen = wristDist > shoulderWidth * JACK_ARMS_OPEN_MULT;
-        const armsClosed = wristDist < shoulderWidth * JACK_ARMS_CLOSED_MULT;
+        // Smooth the signals
+        jackArmsRatioEma = ema(jackArmsRatioEma, armsRatio, JACK_EMA_ALPHA);
+        jackLegsRatioEma = ema(jackLegsRatioEma, legsRatio, JACK_EMA_ALPHA);
+        jackArmsUpEma = ema(jackArmsUpEma, armsUpDelta, JACK_EMA_ALPHA);
 
-        const legsOpen = ankleDist > hipWidth * JACK_LEGS_OPEN_MULT;
-        const legsClosed = ankleDist < hipWidth * JACK_LEGS_CLOSED_MULT;
+        const openPose =
+          jackArmsRatioEma >= JACK_OPEN_ARMS_RATIO &&
+          jackLegsRatioEma >= JACK_OPEN_LEGS_RATIO &&
+          jackArmsUpEma >= JACK_ARMS_UP_MARGIN;
 
-        const wristsAboveShoulders = wristsY < (shouldersY - JACK_WRISTS_ABOVE_SHOULDERS_MARGIN);
-        const wristsNotHigh = wristsY > (shouldersY - JACK_WRISTS_NOT_HIGH_MARGIN);
+        const closedPose =
+          jackArmsRatioEma <= JACK_CLOSED_ARMS_RATIO &&
+          jackLegsRatioEma <= JACK_CLOSED_LEGS_RATIO &&
+          jackArmsUpEma <= JACK_ARMS_NOT_UP_MARGIN;
 
-        const openPose = armsOpen && legsOpen && wristsAboveShoulders;
-        const closedPose = armsClosed && legsClosed && wristsNotHigh;
+        lastMetric =
+          `A:${jackArmsRatioEma.toFixed(2)} L:${jackLegsRatioEma.toFixed(2)} Up:${jackArmsUpEma.toFixed(3)}`;
 
-        const armsRatio = (shoulderWidth > 1e-6) ? wristDist / shoulderWidth : 0;
-        const legsRatio = (hipWidth > 1e-6) ? ankleDist / hipWidth : 0;
-        lastMetric = `A:${armsRatio.toFixed(2)} L:${legsRatio.toFixed(2)}`;
-
-        // State machine: closed -> open -> closed
+        // State machine: closed -> open -> closed counts a rep
         if (phase === "unknown") {
           phase = closedPose ? "closed" : (openPose ? "open" : "unknown");
         } else if (phase === "closed") {
@@ -546,10 +598,10 @@
 
         updateHUD({
           reps: repCount,
-          metricLabel: "Open",
+          metricLabel: "Jacks",
           metricValue: lastMetric,
           phaseText: phase,
-          gate: openPose ? "openPose" : (closedPose ? "closedPose" : "in-between")
+          gate: openPose ? "openPose" : (closedPose ? "closedPose" : "between")
         });
       }
 
@@ -573,7 +625,6 @@
       function loop(now) {
         if (!webcamRunning) return;
 
-        // Throttle inference for responsiveness
         if (now - lastInferAt >= MIN_INFER_MS && video.readyState >= 2) {
           lastInferAt = now;
 
@@ -582,7 +633,7 @@
               clearCanvas();
               updateHUD({
                 reps: repCount,
-                metricLabel: mode === Mode.PUSHUPS ? "Elbow" : "Open",
+                metricLabel: mode === Mode.PUSHUPS ? "Elbow" : "Jacks",
                 metricValue: "—",
                 phaseText: phase,
                 gate: "no pose"
@@ -607,7 +658,6 @@
 
         const vision = await FilesetResolver.forVisionTasks(WASM_ROOT);
 
-        // Try GPU first; fallback to CPU if needed
         try {
           poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
             baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
@@ -640,7 +690,6 @@
       async function startCamera() {
         hideError();
 
-        // Avoid forcing aspectRatio; keep it flexible to prevent weird cropping/zoom.
         const constraints = {
           video: {
             facingMode: "user",
@@ -658,20 +707,17 @@
           video.onloadedmetadata = () => resolve();
         });
 
-        // Some mobile browsers need an explicit play()
         try { await video.play(); } catch {}
 
         webcamRunning = true;
         resetBtn.disabled = false;
         startBtn.textContent = "Stop camera";
 
-        // Reset timing
         lastInferAt = 0;
         fpsWindowStart = performance.now();
         inferCount = 0;
         fpsPill.textContent = "Inference: — fps";
 
-        // Ensure canvas size matches the real video frame
         resizeCanvasToVideo();
         clearCanvas();
 
@@ -696,15 +742,21 @@
         fpsPill.textContent = "Inference: — fps";
       }
 
-      function reset() {
+      function reset(resetJackFilters = false) {
         repCount = 0;
         phase = "unknown";
         lastMetric = null;
         checkmark.classList.remove("show");
 
+        if (resetJackFilters) {
+          jackArmsRatioEma = null;
+          jackLegsRatioEma = null;
+          jackArmsUpEma = null;
+        }
+
         updateHUD({
           reps: repCount,
-          metricLabel: mode === Mode.PUSHUPS ? "Elbow" : "Open",
+          metricLabel: mode === Mode.PUSHUPS ? "Elbow" : "Jacks",
           metricValue: "—",
           phaseText: "—",
           gate: "—"
@@ -724,16 +776,14 @@
         }
       });
 
-      resetBtn.addEventListener("click", reset);
+      resetBtn.addEventListener("click", () => reset(true));
       pushupModeBtn.addEventListener("click", () => setMode(Mode.PUSHUPS));
       jackModeBtn.addEventListener("click", () => setMode(Mode.JACKS));
 
-      // Pause camera work when tab is hidden (helps mobile)
       document.addEventListener("visibilitychange", () => {
         if (document.hidden && webcamRunning) stopCamera();
       });
 
-      /** -------------------- Boot -------------------- **/
       (async () => {
         try {
           if (!navigator.mediaDevices?.getUserMedia) {
@@ -743,7 +793,7 @@
           }
           await initModel();
           setMode(Mode.PUSHUPS);
-          reset();
+          reset(true);
         } catch (e) {
           statusPill.textContent = "Model: failed";
           showError(String(e?.message || e));
