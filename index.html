@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Workout Detector (Portrait, Fit Camera)</title>
+    <title>Jumping Jacks Counter (Portrait)</title>
 
     <style>
       :root { color-scheme: dark; }
@@ -42,18 +42,9 @@
         white-space:nowrap;
       }
 
-      .controls{
-        display:grid;
-        gap:8px;
-        justify-items:end;
-        align-content:start;
-      }
-      .toggleGroup{
-        display:flex;
-        gap:8px;
-        flex-wrap:wrap;
-        justify-content:flex-end;
-      }
+      /* 3 lines of controls */
+      .controls{display:grid;gap:8px;justify-items:end;align-content:start;}
+      .toggleGroup{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
       button{
         border:1px solid rgba(255,255,255,.16);
         background:rgba(255,255,255,.06);
@@ -86,7 +77,7 @@
       video{
         position:absolute; inset:0;
         width:100%; height:100%;
-        object-fit:contain; /* NO crop/zoom */
+        object-fit:contain;          /* no zoom/crop */
         transform:scaleX(-1);
         z-index:1;
       }
@@ -94,11 +85,12 @@
         position:absolute; inset:0;
         width:100%; height:100%;
         object-fit:contain;
-        background:transparent;
+        background:transparent;      /* don't cover video */
         transform:scaleX(-1);
         pointer-events:none;
         z-index:2;
       }
+
       .hud{
         position:absolute; left:12px; top:12px;
         display:grid; gap:8px;
@@ -116,9 +108,28 @@
         text-overflow:ellipsis;
         white-space:nowrap;
       }
+
+      /* Big rep counter so you can see it from far away */
+      .bigRep{
+        position:absolute;
+        left:50%;
+        bottom:14px;
+        transform:translateX(-50%);
+        z-index:4;
+        padding:10px 14px;
+        border-radius:14px;
+        background:rgba(0,0,0,.45);
+        border:1px solid rgba(255,255,255,.10);
+        font-weight:800;
+        font-size:28px;
+        letter-spacing:0.5px;
+        min-width:80px;
+        text-align:center;
+      }
+
       .check{
         position:absolute; right:14px; top:14px;
-        z-index:4;
+        z-index:5;
         width:70px; height:70px;
         border-radius:18px;
         display:grid; place-items:center;
@@ -159,19 +170,20 @@
           <div class="left">
             <div class="title">Workout Detector</div>
             <div class="subtitle" id="subtitle">
-              Push-ups: side/profile view works best. Jumping jacks: full body in frame.
+              Jumping jacks: full body in frame. Rep counts at the OPEN peak with a cooldown.
             </div>
             <div class="pills">
               <div class="pill" id="statusPill">Model: loading…</div>
-              <div class="pill" id="modePill">Mode: Push-ups</div>
+              <div class="pill" id="modePill">Mode: Jumping jacks</div>
               <div class="pill" id="fpsPill">Inference: — fps</div>
             </div>
           </div>
 
+          <!-- 3 lines -->
           <div class="controls">
             <div class="toggleGroup" aria-label="Mode selection">
-              <button id="pushupModeBtn" class="active" disabled>Push-ups</button>
-              <button id="jackModeBtn" disabled>Jumping jacks</button>
+              <button id="pushupModeBtn" disabled>Push-ups (disabled)</button>
+              <button id="jackModeBtn" class="active" disabled>Jumping jacks</button>
             </div>
             <button id="startBtn" disabled>Enable camera</button>
             <button id="resetBtn" disabled>Reset</button>
@@ -189,6 +201,8 @@
             <div class="badge" id="hud2">Metric: — | Phase: —</div>
             <div class="badge" id="hud3">Gate: —</div>
           </div>
+
+          <div class="bigRep" id="bigRep">0</div>
 
           <div class="check" id="checkmark" aria-label="Rep detected">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -215,7 +229,7 @@
     <script type="module">
       import { PoseLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/+esm";
 
-      // FULL tends to work better at distance; fallback to LITE.
+      // Full model tends to be better at distance; fallback to lite.
       const MODEL_URLS = [
         "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
         "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
@@ -223,14 +237,12 @@
       const WASM_ROOT = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm";
 
       const statusPill = document.getElementById("statusPill");
-      const modePill = document.getElementById("modePill");
       const fpsPill = document.getElementById("fpsPill");
-      const subtitle = document.getElementById("subtitle");
 
       const startBtn = document.getElementById("startBtn");
       const resetBtn = document.getElementById("resetBtn");
-      const pushupModeBtn = document.getElementById("pushupModeBtn");
       const jackModeBtn = document.getElementById("jackModeBtn");
+      const pushupModeBtn = document.getElementById("pushupModeBtn");
 
       const errorPane = document.getElementById("errorPane");
       const errorText = document.getElementById("errorText");
@@ -242,47 +254,26 @@
       const hud1 = document.getElementById("hud1");
       const hud2 = document.getElementById("hud2");
       const hud3 = document.getElementById("hud3");
+      const bigRep = document.getElementById("bigRep");
+
       const checkmark = document.getElementById("checkmark");
 
-      const Mode = Object.freeze({ PUSHUPS: "pushups", JACKS: "jacks" });
-      let mode = Mode.PUSHUPS;
-
-      function setMode(nextMode) {
-        mode = nextMode;
-        pushupModeBtn.classList.toggle("active", mode === Mode.PUSHUPS);
-        jackModeBtn.classList.toggle("active", mode === Mode.JACKS);
-
-        modePill.textContent = `Mode: ${mode === Mode.PUSHUPS ? "Push-ups" : "Jumping jacks"}`;
-        subtitle.textContent =
-          mode === Mode.PUSHUPS
-            ? "Push-ups: side/profile view works best."
-            : "Jumping jacks: full body in frame. Stand back and use good lighting.";
-
-        reset(true);
-      }
-
       // Keep mobile responsive
-      const TARGET_INFER_FPS = 15;
+      const TARGET_INFER_FPS = 24;                 // higher than before
       const MIN_INFER_MS = 1000 / TARGET_INFER_FPS;
 
-      const SHOW_CHECK_MS = 700;
+      const SHOW_CHECK_MS = 650;
 
-      // Push-up thresholds (tolerant)
-      const PUSHUP_DOWN_ANGLE = 110;
-      const PUSHUP_UP_ANGLE = 160;
+      // Jumping jack detection (counts at OPEN peak)
+      const EMA_ALPHA = 0.55;                      // faster reaction
+      const JACK_OPEN_LEGS_RATIO = 1.22;           // feet wide
+      const JACK_CLOSED_LEGS_RATIO = 1.10;         // feet together-ish
+      const JACK_UP_OPEN = 0.035;                  // arms above head/shoulders
+      const JACK_UP_CLOSED = 0.015;
 
-      // Jumping jack thresholds (tolerant + hysteresis)
-      const JACK_OPEN_ARMS_RATIO = 1.30;
-      const JACK_CLOSED_ARMS_RATIO = 1.12;
-
-      const JACK_OPEN_LEGS_RATIO = 1.30;
-      const JACK_CLOSED_LEGS_RATIO = 1.12;
-
-      // “Arms up” uses nose/shoulder reference; positive = arms above ref
-      const JACK_UP_OPEN = 0.030;
-      const JACK_UP_CLOSED = 0.012;
-
-      const EMA_ALPHA = 0.35;
+      // Rep logic: count on open peak (not on return)
+      const JACK_REP_COOLDOWN_MS = 320;
+      const JACK_OPEN_STREAK_FRAMES = 2;
 
       let poseLandmarker = null;
       let drawingUtils = null;
@@ -295,10 +286,15 @@
       let phase = "unknown";
       let lastMetric = null;
 
-      // Smoothed jack signals
-      let armsRatioEma = null;
+      // Smoothed signals
       let legsRatioEma = null;
       let upEma = null;
+
+      // Peak counting state
+      let openFrames = 0;
+      let notOpenFrames = 0;
+      let openLatched = false;
+      let lastRepAt = 0;
 
       let checkTimer = null;
 
@@ -315,20 +311,8 @@
         errorText.textContent = "";
       }
 
-      function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
       function hypot2(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
       function ema(prev, next, alpha) { return (prev == null) ? next : (prev * (1 - alpha) + next * alpha); }
-
-      function angleDeg(a, b, c) {
-        const abx = a.x - b.x, aby = a.y - b.y;
-        const cbx = c.x - b.x, cby = c.y - b.y;
-        const dot = abx * cbx + aby * cby;
-        const ab = Math.hypot(abx, aby);
-        const cb = Math.hypot(cbx, cby);
-        if (ab < 1e-6 || cb < 1e-6) return null;
-        const cos = clamp(dot / (ab * cb), -1, 1);
-        return Math.acos(cos) * (180 / Math.PI);
-      }
 
       function flashCheckmark() {
         checkmark.classList.add("show");
@@ -355,6 +339,7 @@
 
       function updateHUD({ reps, metricLabel, metricValue, phaseText, gate }) {
         hud1.textContent = `Reps: ${reps}`;
+        bigRep.textContent = String(reps);
         hud2.textContent = `${metricLabel}: ${metricValue} | Phase: ${phaseText}`;
         hud3.textContent = `Gate: ${gate}`;
       }
@@ -364,7 +349,6 @@
       }
 
       function bestOf(landmarks, indices) {
-        // No confidence gating. Just pick first valid point; if none valid, return null.
         for (const i of indices) {
           const p = landmarks[i];
           if (validPoint(p)) return p;
@@ -372,70 +356,18 @@
         return null;
       }
 
-      /** -------------------- Push-ups -------------------- **/
-      function pickSide(landmarks) {
-        // Prefer whichever side has wrist + elbow + shoulder valid
-        const leftOk = validPoint(landmarks[11]) && validPoint(landmarks[13]) && validPoint(landmarks[15]);
-        const rightOk = validPoint(landmarks[12]) && validPoint(landmarks[14]) && validPoint(landmarks[16]);
-        if (leftOk && !rightOk) return "left";
-        if (rightOk && !leftOk) return "right";
-        return "left"; // default
-      }
-
-      function processPushups(landmarks) {
-        const side = pickSide(landmarks);
-        const shoulder = landmarks[side === "left" ? 11 : 12];
-        const elbow    = landmarks[side === "left" ? 13 : 14];
-        const wrist    = landmarks[side === "left" ? 15 : 16];
-
-        if (!validPoint(shoulder) || !validPoint(elbow) || !validPoint(wrist)) {
-          updateHUD({ reps: repCount, metricLabel:"Elbow", metricValue:"—", phaseText:phase, gate:"need shoulder/elbow/wrist" });
-          return;
-        }
-
-        const a = angleDeg(shoulder, elbow, wrist);
-        if (a == null) {
-          updateHUD({ reps: repCount, metricLabel:"Elbow", metricValue:"—", phaseText:phase, gate:"bad angle" });
-          return;
-        }
-
-        // Simple smoothing
-        if (lastMetric == null) lastMetric = a;
-        else lastMetric = 0.65 * lastMetric + 0.35 * a;
-
-        if ((phase === "unknown" || phase === "up") && lastMetric <= PUSHUP_DOWN_ANGLE) {
-          phase = "down";
-        } else if (phase === "down" && lastMetric >= PUSHUP_UP_ANGLE) {
-          phase = "up";
-          repCount += 1;
-          flashCheckmark();
-        } else if (phase === "unknown" && lastMetric >= PUSHUP_UP_ANGLE) {
-          phase = "up";
-        }
-
-        updateHUD({
-          reps: repCount,
-          metricLabel: "Elbow",
-          metricValue: `${lastMetric.toFixed(0)}°`,
-          phaseText: phase,
-          gate: "ok"
-        });
-      }
-
-      /** -------------------- Jumping jacks -------------------- **/
       function processJumpingJacks(landmarks) {
-        // Arms: prefer wrists; fallback to elbows
+        // Arms: wrists preferred; elbows fallback
         const lArm = bestOf(landmarks, [15, 13]);
         const rArm = bestOf(landmarks, [16, 14]);
-        // Legs: prefer ankles; fallback to knees
+        // Legs: ankles preferred; knees fallback
         const lLeg = bestOf(landmarks, [27, 25]);
         const rLeg = bestOf(landmarks, [28, 26]);
 
-        // Reference points
-        const lShoulder = landmarks[11];
-        const rShoulder = landmarks[12];
         const lHip = landmarks[23];
         const rHip = landmarks[24];
+        const lShoulder = landmarks[11];
+        const rShoulder = landmarks[12];
         const nose = landmarks[0];
 
         if (!lArm || !rArm || !lLeg || !rLeg) {
@@ -449,65 +381,56 @@
           return;
         }
 
-        // Scale for ratios: try shoulders, then hips, else fallback constant
-        let shoulderWidth = null;
-        if (validPoint(lShoulder) && validPoint(rShoulder)) {
-          shoulderWidth = hypot2(lShoulder.x, lShoulder.y, rShoulder.x, rShoulder.y);
-        }
-        let hipWidth = null;
-        if (validPoint(lHip) && validPoint(rHip)) {
-          hipWidth = hypot2(lHip.x, lHip.y, rHip.x, rHip.y);
-        }
+        // Baseline width for leg ratio: use hips if possible, else shoulders, else fallback
+        let base = null;
+        if (validPoint(lHip) && validPoint(rHip)) base = hypot2(lHip.x, lHip.y, rHip.x, rHip.y);
+        else if (validPoint(lShoulder) && validPoint(rShoulder)) base = hypot2(lShoulder.x, lShoulder.y, rShoulder.x, rShoulder.y);
+        base = Math.max(base ?? 0.25, 0.10);
 
-        const baseArms = Math.max(shoulderWidth ?? hipWidth ?? 0.25, 0.10);
-        const baseLegs = Math.max(hipWidth ?? shoulderWidth ?? 0.25, 0.10);
-
-        const armDist = hypot2(lArm.x, lArm.y, rArm.x, rArm.y);
         const legDist = hypot2(lLeg.x, lLeg.y, rLeg.x, rLeg.y);
+        const legsRatio = legDist / base;
 
-        const armsRatio = armDist / baseArms;
-        const legsRatio = legDist / baseLegs;
-
-        // Arms-up reference: use nose if valid (best for overhead), else use best shoulder y
+        // Arms-up reference: nose is best; else use highest shoulder Y
         let refY = null;
         if (validPoint(nose)) refY = nose.y;
         if (validPoint(lShoulder)) refY = (refY == null) ? lShoulder.y : Math.min(refY, lShoulder.y);
         if (validPoint(rShoulder)) refY = (refY == null) ? rShoulder.y : Math.min(refY, rShoulder.y);
-        if (refY == null) refY = 0.4; // fallback
+        if (refY == null) refY = 0.4;
 
         const armsY = (lArm.y + rArm.y) / 2;
-        const up = (refY - armsY); // positive => arms above ref
+        const up = (refY - armsY); // positive => arms above reference
 
         // Smooth
-        armsRatioEma = ema(armsRatioEma, armsRatio, EMA_ALPHA);
         legsRatioEma = ema(legsRatioEma, legsRatio, EMA_ALPHA);
         upEma = ema(upEma, up, EMA_ALPHA);
 
-        const openPose =
-          armsRatioEma >= JACK_OPEN_ARMS_RATIO &&
-          legsRatioEma >= JACK_OPEN_LEGS_RATIO &&
-          upEma >= JACK_UP_OPEN;
+        const openPose = (legsRatioEma >= JACK_OPEN_LEGS_RATIO) && (upEma >= JACK_UP_OPEN);
+        const closedPose = (legsRatioEma <= JACK_CLOSED_LEGS_RATIO) && (upEma <= JACK_UP_CLOSED);
 
-        const closedPose =
-          armsRatioEma <= JACK_CLOSED_ARMS_RATIO &&
-          legsRatioEma <= JACK_CLOSED_LEGS_RATIO &&
-          upEma <= JACK_UP_CLOSED;
+        lastMetric = `L:${legsRatioEma.toFixed(2)} Up:${upEma.toFixed(3)} (base:${base.toFixed(2)})`;
 
-        lastMetric = `A:${armsRatioEma.toFixed(2)} L:${legsRatioEma.toFixed(2)} Up:${upEma.toFixed(3)} (baseA:${baseArms.toFixed(2)} baseL:${baseLegs.toFixed(2)})`;
-
-        // closed -> open -> closed = 1 rep
-        if (phase === "unknown") {
-          if (closedPose) phase = "closed";
-          else if (openPose) phase = "open";
-        } else if (phase === "closed") {
-          if (openPose) phase = "open";
-        } else if (phase === "open") {
-          if (closedPose) {
-            phase = "closed";
-            repCount += 1;
-            flashCheckmark();
-          }
+        // Count ON OPEN PEAK with streak + cooldown
+        if (openPose) {
+          openFrames++;
+          notOpenFrames = 0;
+        } else {
+          notOpenFrames++;
+          openFrames = 0;
+          if (notOpenFrames >= 2) openLatched = false; // ready for next rep
         }
+
+        const now = performance.now();
+        if (openFrames >= JACK_OPEN_STREAK_FRAMES && !openLatched && (now - lastRepAt) >= JACK_REP_COOLDOWN_MS) {
+          repCount++;
+          lastRepAt = now;
+          openLatched = true;
+          flashCheckmark();
+        }
+
+        // Phase label
+        if (openPose) phase = "open";
+        else if (closedPose) phase = "closed";
+        else if (phase === "unknown") phase = "between";
 
         updateHUD({
           reps: repCount,
@@ -518,12 +441,6 @@
         });
       }
 
-      function processPoseByMode(landmarks) {
-        if (mode === Mode.PUSHUPS) processPushups(landmarks);
-        else processJumpingJacks(landmarks);
-      }
-
-      /** -------------------- Loop -------------------- **/
       function updateFps(now) {
         inferCount++;
         const elapsed = now - fpsWindowStart;
@@ -545,7 +462,7 @@
               clearCanvas();
               updateHUD({
                 reps: repCount,
-                metricLabel: mode === Mode.PUSHUPS ? "Elbow" : "Jacks",
+                metricLabel: "Jacks",
                 metricValue: "—",
                 phaseText: phase,
                 gate: "no pose"
@@ -555,7 +472,9 @@
 
             const person = result.landmarks[0];
             drawPose(person);
-            processPoseByMode(person);
+
+            // Jumping jacks only (push-ups disabled)
+            processJumpingJacks(person);
           });
 
           updateFps(now);
@@ -564,7 +483,6 @@
         rafId = requestAnimationFrame(loop);
       }
 
-      /** -------------------- Model + Camera -------------------- **/
       async function createLandmarker(vision, modelUrl, delegate) {
         return PoseLandmarker.createFromOptions(vision, {
           baseOptions: { modelAssetPath: modelUrl, delegate },
@@ -651,21 +569,23 @@
         fpsPill.textContent = "Inference: — fps";
       }
 
-      function reset(resetJackFilters = false) {
+      function reset() {
         repCount = 0;
         phase = "unknown";
         lastMetric = null;
         checkmark.classList.remove("show");
 
-        if (resetJackFilters) {
-          armsRatioEma = null;
-          legsRatioEma = null;
-          upEma = null;
-        }
+        legsRatioEma = null;
+        upEma = null;
+
+        openFrames = 0;
+        notOpenFrames = 0;
+        openLatched = false;
+        lastRepAt = 0;
 
         updateHUD({
           reps: repCount,
-          metricLabel: mode === Mode.PUSHUPS ? "Elbow" : "Jacks",
+          metricLabel: "Jacks",
           metricValue: "—",
           phaseText: "—",
           gate: "—"
@@ -685,9 +605,11 @@
         }
       });
 
-      resetBtn.addEventListener("click", () => reset(true));
-      pushupModeBtn.addEventListener("click", () => setMode(Mode.PUSHUPS));
-      jackModeBtn.addEventListener("click", () => setMode(Mode.JACKS));
+      resetBtn.addEventListener("click", reset);
+
+      // Buttons kept for layout, but push-ups are intentionally disabled for now.
+      pushupModeBtn.addEventListener("click", () => {});
+      jackModeBtn.addEventListener("click", () => {});
 
       document.addEventListener("visibilitychange", () => {
         if (document.hidden && webcamRunning) stopCamera();
@@ -700,13 +622,15 @@
             showError("This browser does not support camera access (getUserMedia).");
             return;
           }
-          await initModel();
-          startBtn.disabled = false;
-          pushupModeBtn.disabled = false;
-          jackModeBtn.disabled = false;
 
-          setMode(Mode.PUSHUPS);
-          reset(true);
+          await initModel();
+
+          startBtn.disabled = false;
+          resetBtn.disabled = false;
+          jackModeBtn.disabled = false;
+          pushupModeBtn.disabled = true; // stays disabled
+
+          reset();
         } catch (e) {
           statusPill.textContent = "Model: failed";
           showError(String(e?.message || e));
