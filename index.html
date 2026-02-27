@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="theme-color" content="#080c14"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <title>JACK — Jumping Jack Trainer</title>
+  <title>Justify — Earn Your Screen Time</title>
   <link rel="icon" type="image/x-icon" href="favicon.ico"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet"/>
@@ -707,7 +707,7 @@
 
 <!-- Loading -->
 <div class="loading-overlay" id="loadingOverlay">
-  <div class="loading-logo">JACK</div>
+  <div class="loading-logo">JUSTIFY</div>
   <div class="loading-bar-wrap"><div class="loading-bar" id="loadingBar"></div></div>
   <div class="loading-label" id="loadingLabel">INITIALIZING POSE ENGINE</div>
 </div>
@@ -732,8 +732,8 @@
 <div class="app">
   <!-- WELCOME SCREEN -->
   <div class="screen" id="screen-welcome">
-    <div class="welcome-logo">JACK</div>
-    <div class="welcome-tagline">Jumping Jack Trainer</div>
+    <div class="welcome-logo">JUSTIFY</div>
+    <div class="welcome-tagline">Earn Your Screen Time</div>
     <div class="welcome-card">
       <div class="goal-row">
         <label for="dailyGoalInput">Daily Goal</label>
@@ -1107,7 +1107,7 @@ function getStorage(key, fallback) {
 function setStorage(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} }
 
 function loadStreak() {
-  const data = getStorage('jack_streak', { count: 0, lastDate: null });
+  const data = getStorage('justify_streak', { count: 0, lastDate: null });
   const today = new Date().toDateString();
   if (data.lastDate === today) return data.count;
   const yesterday = new Date(Date.now() - 86400000).toDateString();
@@ -1116,20 +1116,20 @@ function loadStreak() {
 }
 function saveStreak() {
   const today = new Date().toDateString();
-  const data = getStorage('jack_streak', { count: 0, lastDate: null });
+  const data = getStorage('justify_streak', { count: 0, lastDate: null });
   const yesterday = new Date(Date.now() - 86400000).toDateString();
   let count = data.lastDate === yesterday ? data.count + 1 : (data.lastDate === today ? data.count : 1);
-  setStorage('jack_streak', { count, lastDate: today });
+  setStorage('justify_streak', { count, lastDate: today });
   return count;
 }
 function saveLeaderboard(reps, duration, rpm, cal) {
-  const board = getStorage('jack_leaderboard', []);
+  const board = getStorage('justify_leaderboard', []);
   board.push({ reps, duration, rpm, cal, date: new Date().toLocaleDateString() });
   board.sort((a, b) => b.reps - a.reps);
-  setStorage('jack_leaderboard', board.slice(0, 10));
+  setStorage('justify_leaderboard', board.slice(0, 10));
 }
 function renderLeaderboard() {
-  const board = getStorage('jack_leaderboard', []);
+  const board = getStorage('justify_leaderboard', []);
   if (!board.length) { lbList.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">No sessions yet. Start working out!</div>'; return; }
   const medals = ['🥇','🥈','🥉'];
   lbList.innerHTML = board.map((s, i) => `
@@ -1615,7 +1615,7 @@ function copyStats() {
   const time = document.getElementById('sumTime').textContent;
   const rpm = document.getElementById('sumRpm').textContent;
   const cal = document.getElementById('sumCal').textContent;
-  const text = `🏋️ JACK Workout\n${reps} reps · ${time} · ${rpm} RPM · ${cal} kcal\nTried with JACK – Jumping Jack Trainer`;
+  const text = `🏋️ JUSTIFY Workout\n${reps} reps · ${time} · ${rpm} RPM · ${cal} kcal\njustify.app`;
   navigator.clipboard?.writeText(text).then(() => showMilestone('📋 Copied to clipboard!'));
 }
 
@@ -1633,9 +1633,9 @@ async function shareResults() {
   cc.fillStyle = lg; cc.fillRect(0, 0, 800, 5);
   // Title
   cc.fillStyle = '#e8f0fc'; cc.font = 'bold 72px Barlow Condensed, sans-serif';
-  cc.fillText('JACK', 60, 100);
+  cc.fillText('JUSTIFY', 60, 100);
   cc.fillStyle = '#7a8ba8'; cc.font = '18px Barlow, sans-serif';
-  cc.fillText('Jumping Jack Trainer', 60, 130);
+  cc.fillText('Earn Your Screen Time', 60, 130);
   // Stats
   const stats = [
     { val: document.getElementById('sumReps').textContent, lbl: 'REPS', color: '#00e682', x: 60 },
@@ -1666,7 +1666,7 @@ async function init() {
   loadingBar.style.width = '20%';
   loadingLabel.textContent = 'LOADING POSE ENGINE';
 
-  dailyGoal = getStorage('jack_goal', 50);
+  dailyGoal = getStorage('justify_goal', 50);
   dailyGoalInput.value = dailyGoal;
   const streak = loadStreak();
   streakNum.textContent = streak;
@@ -1713,13 +1713,13 @@ async function init() {
 // ──────────── Events ────────────
 welcomeStartBtn.addEventListener('click', () => {
   dailyGoal = Math.max(5, Math.min(500, parseInt(dailyGoalInput.value) || 50));
-  setStorage('jack_goal', dailyGoal);
+  setStorage('justify_goal', dailyGoal);
   startSession();
 });
 
 dailyGoalInput.addEventListener('change', () => {
   dailyGoal = Math.max(5, Math.min(500, parseInt(dailyGoalInput.value) || 50));
-  setStorage('jack_goal', dailyGoal);
+  setStorage('justify_goal', dailyGoal);
 });
 
 startStopBtn.addEventListener('click', () => {
