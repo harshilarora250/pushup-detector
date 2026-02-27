@@ -1,562 +1,1799 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Jumping Jacks Counter</title>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <meta name="theme-color" content="#080c14"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <title>JACK — Jumping Jack Trainer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    /* ─────────── Reset & Base ─────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #080c14;
+      --bg2: #0e1421;
+      --surface: rgba(14,20,35,0.82);
+      --surface2: rgba(255,255,255,0.05);
+      --border: rgba(255,255,255,0.09);
+      --border-accent: rgba(0,230,130,0.35);
+      --accent: #00e682;
+      --accent2: #00b5ff;
+      --accent3: #ff6b3d;
+      --text: #e8f0fc;
+      --text2: #7a8ba8;
+      --text3: #4a5a72;
+      --red: #ff4b6e;
+      --gold: #ffd166;
+      --radius: 18px;
+      --radius-sm: 10px;
+      --font-display: 'Barlow Condensed', sans-serif;
+      --font-body: 'Barlow', sans-serif;
+      --transition: 0.22s cubic-bezier(0.4,0,0.2,1);
+      color-scheme: dark;
+    }
+    html, body {
+      height: 100%; overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      -webkit-font-smoothing: antialiased;
+      touch-action: manipulation;
+      user-select: none;
+    }
 
-    <style>
-      :root { color-scheme: dark; }
-      body{
-        margin:0;
-        font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-        background:#000;
-        color:#e9eef5;
-        overflow:hidden;
-      }
-      
-      .stage{
-        position:fixed;
-        inset:0;
-        width:100vw;
-        height:100vh;
-        background:#000;
-        touch-action: manipulation;
-      }
-      
-      video{
-        position:absolute; inset:0;
-        width:100%; height:100%;
-        object-fit:contain;
-        transform:scaleX(-1);
-        z-index:1;
-      }
-      canvas{
-        position:absolute; inset:0;
-        width:100%; height:100%;
-        object-fit:contain;
-        background:transparent;
-        transform:scaleX(-1);
-        pointer-events:none;
-        z-index:2;
-      }
+    /* ─────────── Noise grain ─────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      background-size: 200px;
+      pointer-events: none;
+      opacity: 0.6;
+    }
 
-      /* Overlay controls - top right, 3 buttons stacked */
-      .overlayControls{
-        position:absolute;
-        right:14px;
-        top:14px;
-        display:grid;
-        gap:8px;
-        z-index:5;
-      }
-      .overlayControls button{
-        border:1px solid rgba(255,255,255,.2);
-        background:rgba(0,0,0,.6);
-        backdrop-filter:blur(10px);
-        color:#e9eef5;
-        padding:10px 14px;
-        border-radius:10px;
-        cursor:pointer;
-        font-weight:600;
-        font-size:13px;
-        white-space:nowrap;
-        -webkit-tap-highlight-color: transparent;
-        transition:background 150ms ease;
-      }
-      .overlayControls button:hover{
-        background:rgba(0,0,0,.75);
-      }
-      .overlayControls button:disabled{
-        opacity:.5;
-        cursor:not-allowed;
-      }
-      .overlayControls button.active{
-        border-color:rgba(0,255,140,.4);
-        background:rgba(0,180,90,.25);
-      }
+    /* ─────────── Layout ─────────── */
+    .app {
+      position: fixed; inset: 0; z-index: 1;
+      display: grid;
+      grid-template-rows: 1fr;
+    }
 
-      .hud{
-        position:absolute; left:12px; top:12px;
-        display:grid; gap:8px;
-        z-index:3;
-      }
-      .badge{
-        padding:8px 10px;
-        border-radius:12px;
-        background:rgba(0,0,0,.6);
-        backdrop-filter:blur(10px);
-        border:1px solid rgba(255,255,255,.15);
-        font-size:12px;
-        line-height:1.25;
-        max-width:min(78vw, 520px);
-        overflow:hidden;
-        text-overflow:ellipsis;
-        white-space:nowrap;
-      }
+    /* ─────────── SCREENS ─────────── */
+    .screen {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+    .screen.active { opacity: 1; pointer-events: auto; }
 
-      /* Big rep counter */
-      .bigRep{
-        position:absolute;
-        left:50%;
-        bottom:14px;
-        transform:translateX(-50%);
-        z-index:4;
-        padding:10px 14px;
-        border-radius:14px;
-        background:rgba(0,0,0,.6);
-        backdrop-filter:blur(10px);
-        border:1px solid rgba(255,255,255,.15);
-        font-weight:800;
-        font-size:28px;
-        letter-spacing:0.5px;
-        min-width:80px;
-        text-align:center;
-      }
+    /* ─────────── WELCOME SCREEN ─────────── */
+    #screen-welcome {
+      align-items: center; justify-content: center;
+      gap: 0;
+      padding: 24px;
+      background: radial-gradient(ellipse 70% 60% at 50% 100%, rgba(0,230,130,0.08) 0%, transparent 70%),
+                  radial-gradient(ellipse 50% 40% at 80% 20%, rgba(0,181,255,0.06) 0%, transparent 60%),
+                  var(--bg);
+    }
+    .welcome-logo {
+      font-family: var(--font-display);
+      font-size: clamp(72px, 18vw, 120px);
+      font-weight: 900;
+      letter-spacing: -2px;
+      line-height: 0.9;
+      background: linear-gradient(135deg, #00e682 0%, #00b5ff 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+      animation: fadeSlideUp 0.7s ease both;
+    }
+    .welcome-tagline {
+      font-family: var(--font-display);
+      font-size: clamp(14px,3vw,18px);
+      font-weight: 400;
+      color: var(--text2);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 48px;
+      animation: fadeSlideUp 0.7s 0.1s ease both;
+    }
+    .welcome-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      width: min(100%, 380px);
+      backdrop-filter: blur(20px);
+      animation: fadeSlideUp 0.7s 0.2s ease both;
+    }
+    .goal-row {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 20px;
+    }
+    .goal-row label {
+      font-size: 13px; color: var(--text2);
+      letter-spacing: 0.5px; flex-shrink: 0;
+    }
+    .goal-input {
+      flex: 1; background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: var(--font-display);
+      font-size: 22px; font-weight: 700;
+      padding: 8px 12px;
+      text-align: center;
+      outline: none;
+      transition: border-color var(--transition);
+    }
+    .goal-input:focus { border-color: var(--accent); }
+    .streak-display {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px;
+      background: rgba(255,209,102,0.08);
+      border: 1px solid rgba(255,209,102,0.2);
+      border-radius: var(--radius-sm);
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: var(--gold);
+    }
+    .streak-display .streak-num {
+      font-family: var(--font-display);
+      font-size: 20px; font-weight: 700;
+    }
+    .btn-primary {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #00e682, #00b5ff);
+      border: none; border-radius: var(--radius-sm);
+      color: #080c14;
+      font-family: var(--font-display);
+      font-size: 18px; font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 30px rgba(0,230,130,0.3); }
+    .btn-primary:active { transform: translateY(0); }
 
-      .check{
-        position:absolute; 
-        left:50%;
-        top:50%;
-        transform:translate(-50%, -50%) scale(.92);
-        z-index:6;
-        width:90px; 
-        height:90px;
-        border-radius:20px;
-        display:grid; 
-        place-items:center;
-        background:rgba(0,180,90,.25);
-        border:2px solid rgba(0,255,140,.5);
-        opacity:0;
-        transition:opacity 160ms ease,transform 160ms ease;
-        backdrop-filter:blur(12px);
-        pointer-events:none;
-      }
-      .check.show{opacity:1;transform:translate(-50%, -50%) scale(1);}
-      .check svg{width:50px;height:50px;}
+    /* ─────────── WORKOUT SCREEN ─────────── */
+    #screen-workout {
+      flex-direction: column;
+      background: var(--bg);
+    }
+    .workout-layout {
+      flex: 1; display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 0; overflow: hidden;
+    }
+    @media (max-width: 700px) {
+      .workout-layout { grid-template-columns: 1fr; }
+      .side-panel { display: none; }
+      .mobile-hud { display: flex !important; }
+    }
 
-      .error{
-        position:absolute; inset:0;
-        display:grid; place-items:center;
-        padding:18px; text-align:center;
-        background:rgba(0,0,0,.85);
-        backdrop-filter:blur(10px);
-        z-index:10;
-      }
-      .error .box{
-        max-width:560px;
-        padding:16px 18px;
-        border-radius:14px;
-        border:1px solid rgba(255,255,255,.2);
-        background:rgba(20,24,32,.95);
-      }
-      .error .box h2{margin:0 0 8px;font-size:16px;}
-      .error .box p{margin:0;opacity:.88;font-size:13px;line-height:1.4;white-space:pre-wrap;}
-      .hidden{display:none;}
-    </style>
-  </head>
+    /* Camera area */
+    .camera-area {
+      position: relative;
+      background: #000;
+      overflow: hidden;
+    }
+    #video {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      opacity: 0;
+      transition: opacity 0.8s ease;
+    }
+    #video.ready { opacity: 1; }
+    #overlay {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      transform: scaleX(-1);
+      pointer-events: none;
+      z-index: 2;
+    }
+    .camera-vignette {
+      position: absolute; inset: 0; z-index: 3;
+      background: radial-gradient(ellipse 85% 85% at 50% 50%, transparent 55%, rgba(8,12,20,0.7) 100%);
+      pointer-events: none;
+    }
 
-  <body>
-    <div class="stage">
-      <video id="video" autoplay playsinline muted></video>
-      <canvas id="overlay"></canvas>
+    /* Silhouette guide */
+    .silhouette-guide {
+      position: absolute; inset: 0; z-index: 3;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none;
+      opacity: 0.18;
+      transition: opacity 0.5s ease;
+    }
+    .silhouette-guide.hidden { opacity: 0; }
+    .silhouette-guide svg { height: 75%; width: auto; }
 
-      <!-- Overlay controls - top right, 3 buttons -->
-      <div class="overlayControls">
-        <button id="startBtn" disabled>Enable camera</button>
-        <button id="resetBtn" disabled>Reset</button>
-        <button id="jackModeBtn" class="active" disabled>Jumping jacks</button>
+    /* Rep counter overlay */
+    .rep-overlay {
+      position: absolute;
+      bottom: 20px; left: 50%;
+      transform: translateX(-50%);
+      z-index: 5;
+      text-align: center;
+    }
+    .rep-ring-wrap {
+      position: relative;
+      width: 130px; height: 130px;
+      margin: 0 auto 8px;
+    }
+    .rep-ring-svg {
+      position: absolute; inset: 0;
+      transform: rotate(-90deg);
+    }
+    .rep-ring-bg { fill: none; stroke: rgba(255,255,255,0.07); }
+    .rep-ring-fg {
+      fill: none;
+      stroke: url(#ringGrad);
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.6s cubic-bezier(0.4,0,0.2,1);
+    }
+    .rep-number {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column;
+    }
+    .rep-count {
+      font-family: var(--font-display);
+      font-size: 52px; font-weight: 900;
+      line-height: 1;
+      color: #fff;
+      transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1);
+      will-change: transform;
+    }
+    .rep-count.bump { transform: scale(1.22); }
+    .rep-label {
+      font-size: 10px; font-weight: 600;
+      color: var(--text2); letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* Visual flash */
+    .rep-flash {
+      position: absolute; inset: 0; z-index: 4;
+      background: rgba(0,230,130,0.12);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.05s ease;
+    }
+    .rep-flash.show { opacity: 1; }
+
+    /* Form feedback badge */
+    .form-badge {
+      position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+      z-index: 5;
+      padding: 6px 14px;
+      border-radius: 99px;
+      font-size: 12px; font-weight: 600;
+      letter-spacing: 0.5px;
+      opacity: 0;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      white-space: nowrap;
+    }
+    .form-badge.visible { opacity: 1; }
+    .form-badge.good { background: rgba(0,230,130,0.2); border: 1px solid rgba(0,230,130,0.4); color: #00e682; }
+    .form-badge.warn { background: rgba(255,107,61,0.2); border: 1px solid rgba(255,107,61,0.4); color: #ff6b3d; }
+
+    /* Lighting warn */
+    .lighting-warn {
+      position: absolute; top: 16px; right: 16px;
+      z-index: 6;
+      padding: 6px 12px;
+      border-radius: 99px;
+      background: rgba(255,209,102,0.15);
+      border: 1px solid rgba(255,209,102,0.3);
+      color: var(--gold);
+      font-size: 11px; font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .lighting-warn.show { opacity: 1; }
+
+    /* Skeleton toggle */
+    .skeleton-toggle {
+      position: absolute; top: 16px; left: 16px;
+      z-index: 6;
+      padding: 7px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      color: var(--text2);
+      font-size: 11px; font-weight: 600;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 5px;
+      transition: all var(--transition);
+    }
+    .skeleton-toggle:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+    .skeleton-toggle .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--text3);
+      transition: background var(--transition);
+    }
+    .skeleton-toggle.active .dot { background: var(--accent); }
+    .skeleton-toggle.active { color: var(--text); }
+
+    /* Countdown overlay */
+    .countdown-overlay {
+      position: absolute; inset: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(8,12,20,0.75);
+      backdrop-filter: blur(4px);
+      transition: opacity 0.4s ease;
+    }
+    .countdown-overlay.hidden { opacity: 0; pointer-events: none; }
+    .countdown-num {
+      font-family: var(--font-display);
+      font-size: clamp(80px, 25vw, 160px);
+      font-weight: 900;
+      background: linear-gradient(135deg, #00e682, #00b5ff);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: countdownPulse 1s ease forwards;
+    }
+
+    /* Side Panel */
+    .side-panel {
+      background: var(--bg2);
+      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow-y: auto; overflow-x: hidden;
+      padding: 16px;
+      gap: 12px;
+    }
+    .panel-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      backdrop-filter: blur(10px);
+    }
+    .panel-card-label {
+      font-size: 10px; font-weight: 600;
+      letter-spacing: 2px; text-transform: uppercase;
+      color: var(--text3);
+      margin-bottom: 6px;
+    }
+    .panel-card-value {
+      font-family: var(--font-display);
+      font-size: 28px; font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+    }
+    .panel-card-sub {
+      font-size: 11px; color: var(--text2); margin-top: 2px;
+    }
+    .timer-value { color: var(--accent2); }
+    .rpm-value { color: var(--accent); }
+    .cal-value { color: var(--accent3); }
+
+    /* Goal progress */
+    .goal-progress {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+    }
+    .goal-progress-label {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 11px; margin-bottom: 8px;
+    }
+    .goal-progress-label span:first-child { color: var(--text3); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; font-size: 10px; }
+    .goal-progress-label span:last-child { color: var(--text2); font-family: var(--font-display); font-size: 14px; font-weight: 700; }
+    .progress-track {
+      height: 6px; background: var(--surface2); border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00e682, #00b5ff);
+      border-radius: 99px;
+      transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    /* Phase indicator */
+    .phase-indicator {
+      display: flex; gap: 6px;
+    }
+    .phase-dot {
+      flex: 1; height: 4px; border-radius: 99px;
+      background: var(--surface2);
+      transition: background 0.3s ease;
+    }
+    .phase-dot.open { background: var(--accent); }
+    .phase-dot.closed { background: var(--accent2); }
+
+    /* Confidence bar */
+    .confidence-wrap {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .confidence-label { font-size: 10px; color: var(--text3); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; width: 64px; flex-shrink: 0; }
+    .confidence-bar {
+      flex: 1; height: 4px;
+      background: var(--surface2); border-radius: 99px; overflow: hidden;
+    }
+    .confidence-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--red), var(--gold), var(--accent));
+      border-radius: 99px;
+      transition: width 0.3s ease;
+    }
+    .confidence-pct { font-size: 11px; font-family: var(--font-display); font-weight: 700; color: var(--text2); width: 28px; text-align: right; }
+
+    /* Controls bar */
+    .controls-bar {
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+    }
+    .btn-control {
+      padding: 11px 24px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-display);
+      font-size: 15px; font-weight: 700;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      transition: all var(--transition);
+      display: flex; align-items: center; gap: 7px;
+    }
+    .btn-control:hover { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.08); }
+    .btn-control:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+    .btn-control.start-btn {
+      background: linear-gradient(135deg, #00e682, #00b5ff);
+      border-color: transparent;
+      color: #080c14;
+      padding: 11px 32px;
+    }
+    .btn-control.start-btn:hover { box-shadow: 0 6px 24px rgba(0,230,130,0.3); transform: translateY(-1px); }
+    .btn-control.pause-btn { border-color: rgba(255,209,102,0.3); color: var(--gold); }
+    .btn-sound.active { color: var(--accent2); border-color: rgba(0,181,255,0.3); }
+    .btn-focus { }
+
+    /* Mobile HUD */
+    .mobile-hud {
+      display: none;
+      position: absolute; top: 0; left: 0; right: 0;
+      z-index: 5;
+      padding: 10px;
+      gap: 8px;
+      justify-content: space-between;
+    }
+    .mobile-stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 10px;
+      backdrop-filter: blur(10px);
+      text-align: center;
+      flex: 1;
+    }
+    .mobile-stat-val { font-family: var(--font-display); font-size: 18px; font-weight: 700; line-height: 1; }
+    .mobile-stat-lbl { font-size: 9px; color: var(--text3); letter-spacing: 1.5px; text-transform: uppercase; }
+
+    /* ─────────── MILESTONE TOAST ─────────── */
+    .milestone-toast {
+      position: fixed; top: 24px; left: 50%; transform: translateX(-50%) translateY(-80px);
+      z-index: 100;
+      padding: 12px 22px;
+      border-radius: 99px;
+      background: var(--surface);
+      border: 1px solid var(--border-accent);
+      backdrop-filter: blur(20px);
+      font-family: var(--font-display);
+      font-size: 16px; font-weight: 700;
+      color: var(--accent);
+      box-shadow: 0 8px 40px rgba(0,230,130,0.2);
+      transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease;
+      opacity: 0;
+      white-space: nowrap;
+    }
+    .milestone-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    /* ─────────── SUMMARY SCREEN ─────────── */
+    #screen-summary {
+      align-items: center; justify-content: center;
+      padding: 24px;
+      background: radial-gradient(ellipse 70% 60% at 50% 0%, rgba(0,230,130,0.07) 0%, transparent 60%), var(--bg);
+    }
+    .summary-card {
+      width: min(100%, 420px);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(20px);
+      overflow: hidden;
+      animation: fadeSlideUp 0.5s ease both;
+    }
+    .summary-header {
+      padding: 28px 28px 20px;
+      background: linear-gradient(135deg, rgba(0,230,130,0.1), rgba(0,181,255,0.07));
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+    .summary-emoji { font-size: 40px; margin-bottom: 8px; }
+    .summary-title {
+      font-family: var(--font-display);
+      font-size: 28px; font-weight: 800;
+      color: #fff; letter-spacing: 0.5px;
+    }
+    .summary-subtitle { font-size: 13px; color: var(--text2); margin-top: 4px; }
+    .summary-stats {
+      display: grid; grid-template-columns: 1fr 1fr;
+      padding: 20px 28px; gap: 16px;
+    }
+    .summary-stat { text-align: center; }
+    .summary-stat-val {
+      font-family: var(--font-display);
+      font-size: 36px; font-weight: 800; line-height: 1;
+    }
+    .summary-stat-lbl { font-size: 11px; color: var(--text2); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 4px; }
+    .summary-actions {
+      padding: 0 28px 24px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .btn-secondary {
+      width: 100%; padding: 13px;
+      border-radius: var(--radius-sm);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-display);
+      font-size: 15px; font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      transition: all var(--transition);
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.2); }
+
+    /* ─────────── ERROR SCREEN ─────────── */
+    #screen-error {
+      align-items: center; justify-content: center;
+      padding: 24px; background: var(--bg);
+    }
+    .error-card {
+      max-width: 420px; width: 100%;
+      background: var(--surface);
+      border: 1px solid rgba(255,75,110,0.3);
+      border-radius: var(--radius);
+      padding: 28px;
+      text-align: center;
+      animation: fadeSlideUp 0.4s ease both;
+    }
+    .error-icon { font-size: 36px; margin-bottom: 12px; }
+    .error-title { font-family: var(--font-display); font-size: 22px; font-weight: 700; color: var(--red); margin-bottom: 10px; }
+    .error-msg { font-size: 13px; color: var(--text2); line-height: 1.6; white-space: pre-wrap; }
+
+    /* ─────────── LOADING ─────────── */
+    .loading-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+      transition: opacity 0.6s ease;
+    }
+    .loading-overlay.gone { opacity: 0; pointer-events: none; }
+    .loading-logo {
+      font-family: var(--font-display);
+      font-size: 56px; font-weight: 900;
+      background: linear-gradient(135deg, #00e682, #00b5ff);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .loading-bar-wrap {
+      width: 160px; height: 3px;
+      background: var(--surface2); border-radius: 99px; overflow: hidden;
+    }
+    .loading-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #00e682, #00b5ff);
+      border-radius: 99px;
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+    .loading-label { font-size: 12px; color: var(--text3); letter-spacing: 1.5px; }
+
+    /* ─────────── CONFETTI ─────────── */
+    #confetti-canvas {
+      position: fixed; inset: 0; z-index: 150;
+      pointer-events: none;
+    }
+
+    /* ─────────── LOCAL LEADERBOARD ─────────── */
+    .leaderboard-btn {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: var(--text3);
+      background: none; border: none; cursor: pointer;
+      padding: 6px;
+      transition: color var(--transition);
+    }
+    .leaderboard-btn:hover { color: var(--text2); }
+    .leaderboard-popup {
+      position: fixed; inset: 0; z-index: 90;
+      background: rgba(8,12,20,0.85);
+      backdrop-filter: blur(12px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .leaderboard-popup.show { opacity: 1; pointer-events: auto; }
+    .leaderboard-inner {
+      width: min(100%, 380px);
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .lb-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      font-family: var(--font-display); font-size: 18px; font-weight: 700;
+    }
+    .lb-close { background: none; border: none; color: var(--text2); cursor: pointer; font-size: 20px; }
+    .lb-list { padding: 12px; max-height: 320px; overflow-y: auto; }
+    .lb-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px; border-radius: 8px;
+    }
+    .lb-row:nth-child(1) { background: rgba(255,209,102,0.07); }
+    .lb-row:nth-child(2) { background: rgba(200,200,200,0.04); }
+    .lb-row:nth-child(3) { background: rgba(255,107,61,0.04); }
+    .lb-rank { font-family: var(--font-display); font-size: 18px; font-weight: 700; width: 24px; color: var(--text3); }
+    .lb-rank:first-child { color: var(--gold); }
+    .lb-info { flex: 1; }
+    .lb-reps { font-family: var(--font-display); font-size: 20px; font-weight: 700; }
+    .lb-meta { font-size: 11px; color: var(--text3); }
+
+    /* ─────────── SHARE CARD ─────────── */
+    #share-canvas { display: none; }
+
+    /* ─────────── KEYFRAMES ─────────── */
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes countdownPulse {
+      0% { transform: scale(1.3); opacity: 0; }
+      20% { opacity: 1; }
+      80% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(0.8); }
+    }
+    @keyframes ripple {
+      0% { transform: translate(-50%,-50%) scale(0); opacity: 0.5; }
+      100% { transform: translate(-50%,-50%) scale(3); opacity: 0; }
+    }
+    @keyframes milestoneGlow {
+      0%,100% { box-shadow: 0 8px 40px rgba(0,230,130,0.2); }
+      50% { box-shadow: 0 8px 60px rgba(0,230,130,0.45); }
+    }
+
+    /* Focus mode */
+    body.focus-mode .side-panel,
+    body.focus-mode .controls-bar .btn-sound,
+    body.focus-mode .controls-bar .leaderboard-btn,
+    body.focus-mode .skeleton-toggle,
+    body.focus-mode .mobile-hud { opacity: 0; pointer-events: none; }
+    body.focus-mode .camera-vignette { opacity: 0.3; }
+
+    /* Ripple effect on rep */
+    .ripple-el {
+      position: absolute; left: 50%; top: 50%;
+      width: 130px; height: 130px;
+      border-radius: 50%;
+      border: 2px solid rgba(0,230,130,0.6);
+      pointer-events: none;
+      animation: ripple 0.7s ease-out forwards;
+      z-index: 4;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-logo">JACK</div>
+  <div class="loading-bar-wrap"><div class="loading-bar" id="loadingBar"></div></div>
+  <div class="loading-label" id="loadingLabel">INITIALIZING POSE ENGINE</div>
+</div>
+
+<!-- Confetti canvas -->
+<canvas id="confetti-canvas"></canvas>
+
+<!-- Milestone toast -->
+<div class="milestone-toast" id="milestoneToast">🔥 10 reps!</div>
+
+<!-- Leaderboard popup -->
+<div class="leaderboard-popup" id="leaderboardPopup">
+  <div class="leaderboard-inner">
+    <div class="lb-header">
+      🏆 Best Sessions
+      <button class="lb-close" id="lbClose">✕</button>
+    </div>
+    <div class="lb-list" id="lbList"></div>
+  </div>
+</div>
+
+<div class="app">
+  <!-- WELCOME SCREEN -->
+  <div class="screen" id="screen-welcome">
+    <div class="welcome-logo">JACK</div>
+    <div class="welcome-tagline">Jumping Jack Trainer</div>
+    <div class="welcome-card">
+      <div class="goal-row">
+        <label for="dailyGoalInput">Daily Goal</label>
+        <input class="goal-input" id="dailyGoalInput" type="number" min="5" max="500" value="50"/>
+        <label for="dailyGoalInput" style="font-size:11px;color:var(--text2)">reps</label>
       </div>
-
-      <div class="hud">
-        <div class="badge" id="hud1">Reps: 0</div>
-        <div class="badge" id="hud2">Metric: — | Phase: —</div>
-        <div class="badge" id="hud3">Gate: —</div>
+      <div class="streak-display" id="streakDisplay">
+        <span>🔥</span>
+        <span class="streak-num" id="streakNum">0</span>
+        <span style="color:var(--text2);font-size:12px">day streak</span>
       </div>
+      <button class="btn-primary" id="welcomeStartBtn">Start Workout →</button>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:12px;">
+      <button class="leaderboard-btn" id="showLeaderboard">🏆 Best sessions</button>
+    </div>
+  </div>
 
-      <div class="bigRep" id="bigRep">0</div>
+  <!-- WORKOUT SCREEN -->
+  <div class="screen" id="screen-workout">
+    <div class="workout-layout">
 
-      <div class="check" id="checkmark" aria-label="Rep detected">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M20 7L10.5 16.5L4 10"
-            stroke="rgba(235,255,245,0.95)"
-            stroke-width="3"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
+      <!-- Camera -->
+      <div class="camera-area" id="cameraArea">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="overlay"></canvas>
+
+        <!-- SVG gradients for ring -->
+        <svg width="0" height="0" style="position:absolute">
+          <defs>
+            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#00e682"/>
+              <stop offset="100%" stop-color="#00b5ff"/>
+            </linearGradient>
+          </defs>
         </svg>
+
+        <div class="camera-vignette"></div>
+
+        <!-- Silhouette guide -->
+        <div class="silhouette-guide" id="silhouetteGuide">
+          <svg viewBox="0 0 100 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="20" r="14" stroke="white" stroke-width="2.5" fill="none"/>
+            <line x1="50" y1="34" x2="50" y2="100" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="50" y1="55" x2="15" y2="80" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="50" y1="55" x2="85" y2="80" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="50" y1="100" x2="28" y2="160" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="50" y1="100" x2="72" y2="160" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+
+        <!-- Skeleton toggle -->
+        <button class="skeleton-toggle active" id="skeletonToggle" aria-label="Toggle skeleton overlay">
+          <div class="dot"></div>
+          Skeleton
+        </button>
+
+        <!-- Form feedback -->
+        <div class="form-badge" id="formBadge">Arms higher!</div>
+
+        <!-- Lighting warning -->
+        <div class="lighting-warn" id="lightingWarn">⚠ Low light</div>
+
+        <!-- Mobile HUD -->
+        <div class="mobile-hud" id="mobileHud">
+          <div class="mobile-stat"><div class="mobile-stat-val timer-value" id="mobileTimer">0:00</div><div class="mobile-stat-lbl">Time</div></div>
+          <div class="mobile-stat"><div class="mobile-stat-val rpm-value" id="mobileRpm">—</div><div class="mobile-stat-lbl">RPM</div></div>
+          <div class="mobile-stat"><div class="mobile-stat-val cal-value" id="mobileCal">0</div><div class="mobile-stat-lbl">Cal</div></div>
+        </div>
+
+        <!-- Rep counter + ring -->
+        <div class="rep-overlay" id="repOverlay">
+          <div class="rep-ring-wrap">
+            <svg class="rep-ring-svg" id="repRingSvg" viewBox="0 0 130 130">
+              <circle class="rep-ring-bg" cx="65" cy="65" r="56" stroke-width="6"/>
+              <circle class="rep-ring-fg" id="repRingFg" cx="65" cy="65" r="56" stroke-width="6"
+                      stroke-dasharray="351.86" stroke-dashoffset="351.86"/>
+            </svg>
+            <div class="rep-number">
+              <div class="rep-count" id="repCount">0</div>
+              <div class="rep-label">REPS</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Flash -->
+        <div class="rep-flash" id="repFlash"></div>
+
+        <!-- Countdown -->
+        <div class="countdown-overlay hidden" id="countdownOverlay">
+          <div class="countdown-num" id="countdownNum">3</div>
+        </div>
       </div>
 
-      <div class="error hidden" id="errorPane">
-        <div class="box">
-          <h2>Could not start</h2>
-          <p id="errorText"></p>
+      <!-- Side Panel -->
+      <div class="side-panel">
+        <div class="panel-card">
+          <div class="panel-card-label">Session Time</div>
+          <div class="panel-card-value timer-value" id="sessionTimer">0:00</div>
         </div>
+        <div class="panel-card">
+          <div class="panel-card-label">Reps / Min</div>
+          <div class="panel-card-value rpm-value" id="rpmDisplay">—</div>
+          <div class="panel-card-sub" id="paceLabel">—</div>
+        </div>
+        <div class="panel-card">
+          <div class="panel-card-label">Est. Calories</div>
+          <div class="panel-card-value cal-value" id="calDisplay">0</div>
+          <div class="panel-card-sub">kcal burned</div>
+        </div>
+
+        <div class="goal-progress">
+          <div class="goal-progress-label">
+            <span>Daily Goal</span>
+            <span id="goalFraction">0 / 50</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="goalProgressFill" style="width:0%"></div>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-card-label" style="margin-bottom:8px">Phase</div>
+          <div class="phase-indicator">
+            <div class="phase-dot" id="phaseDotOpen"></div>
+            <div class="phase-dot" id="phaseDotClosed"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:5px;">
+            <span style="font-size:9px;color:var(--text3);letter-spacing:1px">OPEN</span>
+            <span style="font-size:9px;color:var(--text3);letter-spacing:1px">CLOSED</span>
+          </div>
+        </div>
+
+        <div class="panel-card" style="padding:12px 16px;display:flex;flex-direction:column;gap:8px;">
+          <div class="panel-card-label">Confidence</div>
+          <div class="confidence-wrap">
+            <div class="confidence-label">Pose</div>
+            <div class="confidence-bar"><div class="confidence-fill" id="confPose" style="width:0%"></div></div>
+            <div class="confidence-pct" id="confPosePct">—</div>
+          </div>
+          <div class="confidence-wrap">
+            <div class="confidence-label">Detection</div>
+            <div class="confidence-bar"><div class="confidence-fill" id="confDet" style="width:0%"></div></div>
+            <div class="confidence-pct" id="confDetPct">—</div>
+          </div>
+        </div>
+
+        <!-- Leaderboard shortcut -->
+        <button class="leaderboard-btn" id="showLeaderboard2" style="margin-top:auto;">🏆 Best sessions</button>
       </div>
     </div>
 
-    <script type="module">
-      import { PoseLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/+esm";
+    <!-- Controls bar -->
+    <div class="controls-bar">
+      <button class="btn-control btn-sound" id="soundBtn" aria-label="Toggle sound" title="Sound (S)">🔇</button>
+      <button class="btn-control start-btn" id="startStopBtn" aria-label="Start workout" title="Space">▶ Start</button>
+      <button class="btn-control pause-btn" id="pauseBtn" disabled aria-label="Pause" title="P">⏸ Pause</button>
+      <button class="btn-control" id="resetWorkoutBtn" aria-label="Reset" title="R">↺ Reset</button>
+      <button class="btn-control" id="focusModeBtn" aria-label="Focus mode" title="F">⊡</button>
+      <button class="leaderboard-btn" id="showLeaderboard3">🏆</button>
+    </div>
+  </div>
 
-      const MODEL_URLS = [
-        "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
-        "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
-      ];
-      const WASM_ROOT = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm";
+  <!-- SUMMARY SCREEN -->
+  <div class="screen" id="screen-summary">
+    <div class="summary-card" id="summaryCard">
+      <div class="summary-header">
+        <div class="summary-emoji" id="summaryEmoji">💪</div>
+        <div class="summary-title" id="summaryTitle">Workout Complete!</div>
+        <div class="summary-subtitle" id="summarySubtitle">Great session!</div>
+      </div>
+      <div class="summary-stats">
+        <div class="summary-stat">
+          <div class="summary-stat-val" id="sumReps" style="color:var(--accent)">0</div>
+          <div class="summary-stat-lbl">Total Reps</div>
+        </div>
+        <div class="summary-stat">
+          <div class="summary-stat-val" id="sumTime" style="color:var(--accent2)">0:00</div>
+          <div class="summary-stat-lbl">Duration</div>
+        </div>
+        <div class="summary-stat">
+          <div class="summary-stat-val" id="sumRpm" style="color:var(--accent3)">—</div>
+          <div class="summary-stat-lbl">Avg RPM</div>
+        </div>
+        <div class="summary-stat">
+          <div class="summary-stat-val" id="sumCal" style="color:var(--gold)">0</div>
+          <div class="summary-stat-lbl">Calories</div>
+        </div>
+      </div>
+      <div class="summary-actions">
+        <button class="btn-primary" id="doAgainBtn">Do it again →</button>
+        <button class="btn-secondary" id="shareBtn">📤 Share results</button>
+        <button class="btn-secondary" id="copyStatsBtn">📋 Copy stats</button>
+        <button class="btn-secondary" id="homeBtn" style="color:var(--text2)">← Back to home</button>
+      </div>
+    </div>
+    <canvas id="share-canvas"></canvas>
+  </div>
 
-      const startBtn = document.getElementById("startBtn");
-      const resetBtn = document.getElementById("resetBtn");
-      const jackModeBtn = document.getElementById("jackModeBtn");
+  <!-- ERROR SCREEN -->
+  <div class="screen" id="screen-error">
+    <div class="error-card">
+      <div class="error-icon">📷</div>
+      <div class="error-title">Camera Error</div>
+      <div class="error-msg" id="errorMsg"></div>
+      <div style="height:16px"></div>
+      <button class="btn-primary" id="retryBtn">Try Again</button>
+    </div>
+  </div>
+</div>
 
-      const errorPane = document.getElementById("errorPane");
-      const errorText = document.getElementById("errorText");
+<script type="module">
+import { PoseLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/+esm";
 
-      const video = document.getElementById("video");
-      const canvas = document.getElementById("overlay");
-      const ctx = canvas.getContext("2d", { alpha: true });
+// ──────────── Constants ────────────
+const MODEL_URLS = [
+  "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
+  "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+];
+const WASM_ROOT = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm";
 
-      const hud1 = document.getElementById("hud1");
-      const hud2 = document.getElementById("hud2");
-      const hud3 = document.getElementById("hud3");
-      const bigRep = document.getElementById("bigRep");
+const EMA_ALPHA = 0.55;
+const JACK_OPEN_LEGS_RATIO = 1.22;
+const JACK_CLOSED_LEGS_RATIO = 1.10;
+const JACK_UP_OPEN = 0.035;
+const JACK_UP_CLOSED = 0.015;
+const JACK_REP_COOLDOWN_MS = 320;
+const JACK_OPEN_STREAK_FRAMES = 2;
+const TARGET_FPS = 24;
+const MIN_INFER_MS = 1000 / TARGET_FPS;
+const INACTIVITY_PAUSE_MS = 6000;
+const CALORIE_RATE = 0.2; // kcal per rep (approx)
 
-      const checkmark = document.getElementById("checkmark");
+const MILESTONES = [10, 25, 50, 75, 100, 150, 200];
+const MILESTONE_MSGS = {
+  10: "🔥 10 reps! You're warming up!",
+  25: "💪 25 reps! Keep it up!",
+  50: "🚀 50 reps! Halfway there!",
+  75: "⚡ 75 reps! On fire!",
+  100: "🏆 100 reps! LEGENDARY!",
+  150: "🌟 150 reps! Unstoppable!",
+  200: "👑 200 reps! You're a machine!",
+};
 
-      const TARGET_INFER_FPS = 24;
-      const MIN_INFER_MS = 1000 / TARGET_INFER_FPS;
-      const SHOW_CHECK_MS = 650;
+// ──────────── DOM refs ────────────
+const loadingOverlay = document.getElementById('loadingOverlay');
+const loadingBar = document.getElementById('loadingBar');
+const loadingLabel = document.getElementById('loadingLabel');
 
-      // Jumping jack detection
-      const EMA_ALPHA = 0.55;
-      const JACK_OPEN_LEGS_RATIO = 1.22;
-      const JACK_CLOSED_LEGS_RATIO = 1.10;
-      const JACK_UP_OPEN = 0.035;
-      const JACK_UP_CLOSED = 0.015;
-      const JACK_REP_COOLDOWN_MS = 320;
-      const JACK_OPEN_STREAK_FRAMES = 2;
+const screenWelcome = document.getElementById('screen-welcome');
+const screenWorkout = document.getElementById('screen-workout');
+const screenSummary = document.getElementById('screen-summary');
+const screenError = document.getElementById('screen-error');
 
-      let poseLandmarker = null;
-      let drawingUtils = null;
-      let stream = null;
-      let webcamRunning = false;
-      let rafId = null;
+const dailyGoalInput = document.getElementById('dailyGoalInput');
+const streakNum = document.getElementById('streakNum');
+const welcomeStartBtn = document.getElementById('welcomeStartBtn');
 
-      let repCount = 0;
-      let phase = "unknown";
-      let lastMetric = null;
+const video = document.getElementById('video');
+const overlayCanvas = document.getElementById('overlay');
+const ctx = overlayCanvas.getContext('2d', { alpha: true });
+const silhouetteGuide = document.getElementById('silhouetteGuide');
+const skeletonToggle = document.getElementById('skeletonToggle');
+const formBadge = document.getElementById('formBadge');
+const lightingWarn = document.getElementById('lightingWarn');
 
-      let legsRatioEma = null;
-      let upEma = null;
+const repCountEl = document.getElementById('repCount');
+const repRingFg = document.getElementById('repRingFg');
+const repFlash = document.getElementById('repFlash');
+const countdownOverlay = document.getElementById('countdownOverlay');
+const countdownNum = document.getElementById('countdownNum');
 
-      let openFrames = 0;
-      let notOpenFrames = 0;
-      let openLatched = false;
-      let lastRepAt = 0;
+const sessionTimerEl = document.getElementById('sessionTimer');
+const rpmDisplayEl = document.getElementById('rpmDisplay');
+const paceLabelEl = document.getElementById('paceLabel');
+const calDisplayEl = document.getElementById('calDisplay');
+const goalFractionEl = document.getElementById('goalFraction');
+const goalProgressFillEl = document.getElementById('goalProgressFill');
+const phaseDotOpen = document.getElementById('phaseDotOpen');
+const phaseDotClosed = document.getElementById('phaseDotClosed');
+const confPose = document.getElementById('confPose');
+const confDet = document.getElementById('confDet');
+const confPosePct = document.getElementById('confPosePct');
+const confDetPct = document.getElementById('confDetPct');
 
-      let checkTimer = null;
-      let lastInferAt = 0;
+const mobileTimer = document.getElementById('mobileTimer');
+const mobileRpm = document.getElementById('mobileRpm');
+const mobileCal = document.getElementById('mobileCal');
 
-      function showError(message) {
-        errorText.textContent = message;
-        errorPane.classList.remove("hidden");
-      }
-      function hideError() {
-        errorPane.classList.add("hidden");
-        errorText.textContent = "";
-      }
+const startStopBtn = document.getElementById('startStopBtn');
+const pauseBtn = document.getElementById('pauseBtn');
+const resetWorkoutBtn = document.getElementById('resetWorkoutBtn');
+const soundBtn = document.getElementById('soundBtn');
+const focusModeBtn = document.getElementById('focusModeBtn');
 
-      function hypot2(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
-      function ema(prev, next, alpha) { return (prev == null) ? next : (prev * (1 - alpha) + next * alpha); }
+const milestoneToast = document.getElementById('milestoneToast');
+const leaderboardPopup = document.getElementById('leaderboardPopup');
+const lbList = document.getElementById('lbList');
+const lbClose = document.getElementById('lbClose');
 
-      function flashCheckmark() {
-        checkmark.classList.add("show");
-        if (checkTimer) clearTimeout(checkTimer);
-        checkTimer = setTimeout(() => checkmark.classList.remove("show"), SHOW_CHECK_MS);
-      }
+const doAgainBtn = document.getElementById('doAgainBtn');
+const shareBtn = document.getElementById('shareBtn');
+const copyStatsBtn = document.getElementById('copyStatsBtn');
+const homeBtn = document.getElementById('homeBtn');
+const retryBtn = document.getElementById('retryBtn');
+const confettiCanvas = document.getElementById('confetti-canvas');
 
-      function resizeCanvasToVideo() {
-        const w = video.videoWidth || 0;
-        const h = video.videoHeight || 0;
-        if (!w || !h) return;
-        if (canvas.width !== w) canvas.width = w;
-        if (canvas.height !== h) canvas.height = h;
-      }
-      function clearCanvas() {
-        if (canvas.width && canvas.height) ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
-      function drawPose(landmarks) {
-        resizeCanvasToVideo();
+// ──────────── State ────────────
+let poseLandmarker = null;
+let drawingUtils = null;
+let stream = null;
+let rafId = null;
+let webcamRunning = false;
+let showSkeleton = true;
+let soundEnabled = false;
+let isFocusMode = false;
+
+let repCount = 0;
+let sessionRunning = false;
+let sessionPaused = false;
+let sessionStartTime = 0;
+let totalPausedMs = 0;
+let pauseStartTime = 0;
+let sessionDurationMs = 0;
+let lastActiveAt = 0;
+let inactivityPauseTimer = null;
+let repTimestamps = [];
+
+let phase = 'unknown';
+let legsRatioEma = null;
+let upEma = null;
+let openFrames = 0;
+let notOpenFrames = 0;
+let openLatched = false;
+let lastRepAt = 0;
+let lastInferAt = 0;
+let milestonesHit = new Set();
+let goalCompleted = false;
+
+let dailyGoal = 50;
+
+// Audio context
+let audioCtx = null;
+
+// ──────────── Helpers ────────────
+function hypot2(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
+function ema(prev, next, alpha) { return (prev == null) ? next : (prev * (1 - alpha) + next * alpha); }
+function validPoint(p) { return p && Number.isFinite(p.x) && Number.isFinite(p.y); }
+function bestOf(landmarks, indices) {
+  for (const i of indices) { const p = landmarks[i]; if (validPoint(p)) return p; }
+  return null;
+}
+function formatTime(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${sec.toString().padStart(2, '0')}`;
+}
+
+// ──────────── Screen management ────────────
+function showScreen(id) {
+  [screenWelcome, screenWorkout, screenSummary, screenError].forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ──────────── LocalStorage ────────────
+function getStorage(key, fallback) {
+  try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
+  catch { return fallback; }
+}
+function setStorage(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} }
+
+function loadStreak() {
+  const data = getStorage('jack_streak', { count: 0, lastDate: null });
+  const today = new Date().toDateString();
+  if (data.lastDate === today) return data.count;
+  const yesterday = new Date(Date.now() - 86400000).toDateString();
+  if (data.lastDate === yesterday) return data.count;
+  return 0;
+}
+function saveStreak() {
+  const today = new Date().toDateString();
+  const data = getStorage('jack_streak', { count: 0, lastDate: null });
+  const yesterday = new Date(Date.now() - 86400000).toDateString();
+  let count = data.lastDate === yesterday ? data.count + 1 : (data.lastDate === today ? data.count : 1);
+  setStorage('jack_streak', { count, lastDate: today });
+  return count;
+}
+function saveLeaderboard(reps, duration, rpm, cal) {
+  const board = getStorage('jack_leaderboard', []);
+  board.push({ reps, duration, rpm, cal, date: new Date().toLocaleDateString() });
+  board.sort((a, b) => b.reps - a.reps);
+  setStorage('jack_leaderboard', board.slice(0, 10));
+}
+function renderLeaderboard() {
+  const board = getStorage('jack_leaderboard', []);
+  if (!board.length) { lbList.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">No sessions yet. Start working out!</div>'; return; }
+  const medals = ['🥇','🥈','🥉'];
+  lbList.innerHTML = board.map((s, i) => `
+    <div class="lb-row">
+      <div class="lb-rank">${medals[i] || (i+1)}</div>
+      <div class="lb-info">
+        <div class="lb-reps">${s.reps} reps</div>
+        <div class="lb-meta">${s.date} · ${s.rpm} RPM · ${s.cal} kcal</div>
+      </div>
+    </div>`).join('');
+}
+
+// ──────────── Audio ────────────
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function playTick(freq = 880, dur = 0.07) {
+  if (!soundEnabled) return;
+  try {
+    const ac = getAudioCtx();
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.frequency.value = freq;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.18, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
+    osc.start(ac.currentTime);
+    osc.stop(ac.currentTime + dur);
+  } catch {}
+}
+
+// ──────────── Confetti ────────────
+let confettiParticles = [];
+function launchConfetti() {
+  const W = confettiCanvas.width = window.innerWidth;
+  const H = confettiCanvas.height = window.innerHeight;
+  const colors = ['#00e682','#00b5ff','#ff6b3d','#ffd166','#fff'];
+  confettiParticles = Array.from({length:120}, () => ({
+    x: Math.random() * W, y: -10,
+    vx: (Math.random() - 0.5) * 4,
+    vy: Math.random() * 3 + 2,
+    r: Math.random() * 6 + 3,
+    c: colors[Math.floor(Math.random()*colors.length)],
+    angle: Math.random() * Math.PI * 2,
+    spin: (Math.random() - 0.5) * 0.2,
+    alpha: 1,
+  }));
+  animateConfetti();
+}
+function animateConfetti() {
+  if (!confettiParticles.length) return;
+  const cc = confettiCanvas.getContext('2d');
+  cc.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+  confettiParticles = confettiParticles.filter(p => p.alpha > 0.01);
+  confettiParticles.forEach(p => {
+    p.x += p.vx; p.y += p.vy; p.angle += p.spin;
+    if (p.y > confettiCanvas.height * 0.6) p.alpha -= 0.025;
+    cc.save();
+    cc.globalAlpha = p.alpha;
+    cc.fillStyle = p.c;
+    cc.translate(p.x, p.y);
+    cc.rotate(p.angle);
+    cc.fillRect(-p.r/2, -p.r/2, p.r, p.r*0.6);
+    cc.restore();
+  });
+  if (confettiParticles.length) requestAnimationFrame(animateConfetti);
+  else cc.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+}
+
+// ──────────── Milestone ────────────
+let milestoneTimer = null;
+function checkMilestone(reps) {
+  for (const m of MILESTONES) {
+    if (reps >= m && !milestonesHit.has(m)) {
+      milestonesHit.add(m);
+      showMilestone(MILESTONE_MSGS[m]);
+      if (m === 100) launchConfetti();
+      playTick(1200, 0.15);
+      break;
+    }
+  }
+  // Goal completion
+  if (reps >= dailyGoal && !goalCompleted) {
+    goalCompleted = true;
+    launchConfetti();
+    showMilestone('🎯 Daily goal reached!');
+  }
+}
+function showMilestone(msg) {
+  milestoneToast.textContent = msg;
+  milestoneToast.classList.add('show');
+  if (milestoneTimer) clearTimeout(milestoneTimer);
+  milestoneTimer = setTimeout(() => milestoneToast.classList.remove('show'), 2800);
+}
+
+// ──────────── Form feedback ────────────
+let formBadgeTimer = null;
+function showFormFeedback(msg, type = 'good') {
+  formBadge.textContent = msg;
+  formBadge.className = `form-badge visible ${type}`;
+  if (formBadgeTimer) clearTimeout(formBadgeTimer);
+  formBadgeTimer = setTimeout(() => formBadge.classList.remove('visible'), 2500);
+}
+
+// ──────────── Rep ring ────────────
+const RING_CIRCUMFERENCE = 2 * Math.PI * 56;
+function updateRing(reps) {
+  const pct = Math.min(reps / dailyGoal, 1);
+  const offset = RING_CIRCUMFERENCE * (1 - pct);
+  repRingFg.style.strokeDashoffset = offset;
+}
+
+// ──────────── Rep animation ────────────
+let bumpTimer = null;
+function bumpRepCount() {
+  repCountEl.classList.add('bump');
+  if (bumpTimer) clearTimeout(bumpTimer);
+  bumpTimer = setTimeout(() => repCountEl.classList.remove('bump'), 250);
+
+  // Flash
+  repFlash.classList.add('show');
+  setTimeout(() => repFlash.classList.remove('show'), 120);
+
+  // Ripple
+  const ripple = document.createElement('div');
+  ripple.className = 'ripple-el';
+  document.querySelector('.rep-ring-wrap').appendChild(ripple);
+  setTimeout(() => ripple.remove(), 750);
+
+  playTick(660, 0.08);
+}
+
+// ──────────── Session timer ────────────
+function getElapsed() {
+  if (!sessionRunning) return sessionDurationMs;
+  if (sessionPaused) return sessionDurationMs;
+  return sessionDurationMs + (performance.now() - sessionStartTime);
+}
+
+function updateTimerDisplay() {
+  const elapsed = getElapsed();
+  const fmt = formatTime(elapsed);
+  sessionTimerEl.textContent = fmt;
+  mobileTimer.textContent = fmt;
+}
+
+function calcRPM() {
+  const now = performance.now();
+  const window60 = repTimestamps.filter(t => now - t < 60000);
+  if (window60.length < 2) return null;
+  const span = (now - window60[0]) / 60000;
+  return Math.round(window60.length / span);
+}
+
+function updateStats() {
+  const elapsed = getElapsed();
+  const rpm = calcRPM();
+  const rpmStr = rpm ? String(rpm) : '—';
+  const cal = Math.round(repCount * CALORIE_RATE);
+
+  rpmDisplayEl.textContent = rpmStr;
+  mobileRpm.textContent = rpmStr;
+  if (rpm) {
+    paceLabelEl.textContent = rpm >= 40 ? 'Excellent pace!' : rpm >= 25 ? 'Good pace' : 'Steady pace';
+  }
+  calDisplayEl.textContent = cal;
+  mobileCal.textContent = cal;
+
+  // Goal progress
+  const pct = Math.min((repCount / dailyGoal) * 100, 100);
+  goalProgressFillEl.style.width = pct + '%';
+  goalFractionEl.textContent = `${repCount} / ${dailyGoal}`;
+}
+
+// ──────────── Inactivity detection ────────────
+function resetInactivityTimer() {
+  lastActiveAt = performance.now();
+  if (inactivityPauseTimer) clearTimeout(inactivityPauseTimer);
+  if (sessionRunning && !sessionPaused) {
+    inactivityPauseTimer = setTimeout(() => {
+      if (sessionRunning && !sessionPaused) pauseSession();
+    }, INACTIVITY_PAUSE_MS);
+  }
+}
+
+// ──────────── Core detection ────────────
+function processJumpingJacks(landmarks) {
+  if (!sessionRunning || sessionPaused) return;
+
+  const lArm = bestOf(landmarks, [15, 13]);
+  const rArm = bestOf(landmarks, [16, 14]);
+  const lLeg = bestOf(landmarks, [27, 25]);
+  const rLeg = bestOf(landmarks, [28, 26]);
+  const lHip = landmarks[23];
+  const rHip = landmarks[24];
+  const lShoulder = landmarks[11];
+  const rShoulder = landmarks[12];
+  const nose = landmarks[0];
+
+  if (!lArm || !rArm || !lLeg || !rLeg) return;
+
+  let base = null;
+  if (validPoint(lHip) && validPoint(rHip)) base = hypot2(lHip.x, lHip.y, rHip.x, rHip.y);
+  else if (validPoint(lShoulder) && validPoint(rShoulder)) base = hypot2(lShoulder.x, lShoulder.y, rShoulder.x, rShoulder.y);
+  base = Math.max(base ?? 0.25, 0.10);
+
+  const legDist = hypot2(lLeg.x, lLeg.y, rLeg.x, rLeg.y);
+  const legsRatio = legDist / base;
+
+  let refY = null;
+  if (validPoint(nose)) refY = nose.y;
+  if (validPoint(lShoulder)) refY = (refY == null) ? lShoulder.y : Math.min(refY, lShoulder.y);
+  if (validPoint(rShoulder)) refY = (refY == null) ? rShoulder.y : Math.min(refY, rShoulder.y);
+  if (refY == null) refY = 0.4;
+
+  const armsY = (lArm.y + rArm.y) / 2;
+  const up = refY - armsY;
+
+  legsRatioEma = ema(legsRatioEma, legsRatio, EMA_ALPHA);
+  upEma = ema(upEma, up, EMA_ALPHA);
+
+  const openPose = (legsRatioEma >= JACK_OPEN_LEGS_RATIO) && (upEma >= JACK_UP_OPEN);
+  const closedPose = (legsRatioEma <= JACK_CLOSED_LEGS_RATIO) && (upEma <= JACK_UP_CLOSED);
+
+  // Phase dots
+  phaseDotOpen.className = 'phase-dot' + (openPose ? ' open' : '');
+  phaseDotClosed.className = 'phase-dot' + (closedPose ? ' closed' : '');
+
+  // Confidence proxy
+  const poseConf = Math.min(100, Math.round(legsRatioEma * 50));
+  const detConf = Math.min(100, Math.round(Math.abs(upEma) * 2000));
+  confPose.style.width = poseConf + '%';
+  confDet.style.width = detConf + '%';
+  confPosePct.textContent = poseConf + '%';
+  confDetPct.textContent = detConf + '%';
+
+  // Form feedback
+  if (openPose && upEma < JACK_UP_OPEN * 1.5) {
+    showFormFeedback('Arms higher! 🙌', 'warn');
+  }
+
+  if (openPose) {
+    openFrames++;
+    notOpenFrames = 0;
+  } else {
+    notOpenFrames++;
+    openFrames = 0;
+    if (notOpenFrames >= 2) openLatched = false;
+  }
+
+  const now = performance.now();
+  if (openFrames >= JACK_OPEN_STREAK_FRAMES && !openLatched && (now - lastRepAt) >= JACK_REP_COOLDOWN_MS) {
+    repCount++;
+    lastRepAt = now;
+    openLatched = true;
+    repTimestamps.push(now);
+    resetInactivityTimer();
+
+    repCountEl.textContent = String(repCount);
+    bumpRepCount();
+    updateRing(repCount);
+    updateStats();
+    checkMilestone(repCount);
+    silhouetteGuide.classList.add('hidden'); // hide once detected
+  }
+
+  if (openPose) phase = 'open';
+  else if (closedPose) phase = 'closed';
+
+  // Lighting detection (rough proxy: check if image is dark)
+  // We do this via a small canvas sample
+}
+
+// ──────────── Lighting check ────────────
+let lightingCheckInterval = null;
+function startLightingCheck() {
+  if (lightingCheckInterval) clearInterval(lightingCheckInterval);
+  lightingCheckInterval = setInterval(() => {
+    if (!video.videoWidth) return;
+    const tmpCanvas = document.createElement('canvas');
+    tmpCanvas.width = 32; tmpCanvas.height = 18;
+    const tCtx = tmpCanvas.getContext('2d');
+    tCtx.drawImage(video, 0, 0, 32, 18);
+    const data = tCtx.getImageData(0, 0, 32, 18).data;
+    let sum = 0;
+    for (let i = 0; i < data.length; i += 4) sum += (data[i] + data[i+1] + data[i+2]) / 3;
+    const avg = sum / (data.length / 4);
+    lightingWarn.classList.toggle('show', avg < 35);
+  }, 3000);
+}
+
+// ──────────── Pose loop ────────────
+function loop(now) {
+  if (!webcamRunning) return;
+  if (now - lastInferAt >= MIN_INFER_MS && video.readyState >= 2) {
+    lastInferAt = now;
+    poseLandmarker.detectForVideo(video, now, (result) => {
+      if (!result?.landmarks?.length) {
         clearCanvas();
-        drawingUtils.drawLandmarks(landmarks, { radius: 3 });
-        drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS);
+        return;
       }
-
-      function updateHUD({ reps, metricLabel, metricValue, phaseText, gate }) {
-        hud1.textContent = `Reps: ${reps}`;
-        bigRep.textContent = String(reps);
-        hud2.textContent = `${metricLabel}: ${metricValue} | Phase: ${phaseText}`;
-        hud3.textContent = `Gate: ${gate}`;
-      }
-
-      function validPoint(p) {
-        return p && Number.isFinite(p.x) && Number.isFinite(p.y);
-      }
-
-      function bestOf(landmarks, indices) {
-        for (const i of indices) {
-          const p = landmarks[i];
-          if (validPoint(p)) return p;
-        }
-        return null;
-      }
-
-      function processJumpingJacks(landmarks) {
-        const lArm = bestOf(landmarks, [15, 13]);
-        const rArm = bestOf(landmarks, [16, 14]);
-        const lLeg = bestOf(landmarks, [27, 25]);
-        const rLeg = bestOf(landmarks, [28, 26]);
-
-        const lHip = landmarks[23];
-        const rHip = landmarks[24];
-        const lShoulder = landmarks[11];
-        const rShoulder = landmarks[12];
-        const nose = landmarks[0];
-
-        if (!lArm || !rArm || !lLeg || !rLeg) {
-          updateHUD({
-            reps: repCount,
-            metricLabel: "Jacks",
-            metricValue: lastMetric ?? "—",
-            phaseText: phase,
-            gate: "need arms+legs in frame"
-          });
-          return;
-        }
-
-        let base = null;
-        if (validPoint(lHip) && validPoint(rHip)) base = hypot2(lHip.x, lHip.y, rHip.x, rHip.y);
-        else if (validPoint(lShoulder) && validPoint(rShoulder)) base = hypot2(lShoulder.x, lShoulder.y, rShoulder.x, rShoulder.y);
-        base = Math.max(base ?? 0.25, 0.10);
-
-        const legDist = hypot2(lLeg.x, lLeg.y, rLeg.x, rLeg.y);
-        const legsRatio = legDist / base;
-
-        let refY = null;
-        if (validPoint(nose)) refY = nose.y;
-        if (validPoint(lShoulder)) refY = (refY == null) ? lShoulder.y : Math.min(refY, lShoulder.y);
-        if (validPoint(rShoulder)) refY = (refY == null) ? rShoulder.y : Math.min(refY, rShoulder.y);
-        if (refY == null) refY = 0.4;
-
-        const armsY = (lArm.y + rArm.y) / 2;
-        const up = (refY - armsY);
-
-        legsRatioEma = ema(legsRatioEma, legsRatio, EMA_ALPHA);
-        upEma = ema(upEma, up, EMA_ALPHA);
-
-        const openPose = (legsRatioEma >= JACK_OPEN_LEGS_RATIO) && (upEma >= JACK_UP_OPEN);
-        const closedPose = (legsRatioEma <= JACK_CLOSED_LEGS_RATIO) && (upEma <= JACK_UP_CLOSED);
-
-        lastMetric = `L:${legsRatioEma.toFixed(2)} Up:${upEma.toFixed(3)} (base:${base.toFixed(2)})`;
-
-        if (openPose) {
-          openFrames++;
-          notOpenFrames = 0;
-        } else {
-          notOpenFrames++;
-          openFrames = 0;
-          if (notOpenFrames >= 2) openLatched = false;
-        }
-
-        const now = performance.now();
-        if (openFrames >= JACK_OPEN_STREAK_FRAMES && !openLatched && (now - lastRepAt) >= JACK_REP_COOLDOWN_MS) {
-          repCount++;
-          lastRepAt = now;
-          openLatched = true;
-          flashCheckmark();
-        }
-
-        if (openPose) phase = "open";
-        else if (closedPose) phase = "closed";
-        else if (phase === "unknown") phase = "between";
-
-        updateHUD({
-          reps: repCount,
-          metricLabel: "Jacks",
-          metricValue: lastMetric,
-          phaseText: phase,
-          gate: openPose ? "openPose" : (closedPose ? "closedPose" : "between")
-        });
-      }
-
-      function loop(now) {
-        if (!webcamRunning) return;
-
-        if (now - lastInferAt >= MIN_INFER_MS && video.readyState >= 2) {
-          lastInferAt = now;
-
-          poseLandmarker.detectForVideo(video, now, (result) => {
-            if (!result?.landmarks?.length) {
-              clearCanvas();
-              updateHUD({
-                reps: repCount,
-                metricLabel: "Jacks",
-                metricValue: "—",
-                phaseText: phase,
-                gate: "no pose"
-              });
-              return;
-            }
-
-            const person = result.landmarks[0];
-            drawPose(person);
-            processJumpingJacks(person);
-          });
-        }
-
-        rafId = requestAnimationFrame(loop);
-      }
-
-      async function createLandmarker(vision, modelUrl, delegate) {
-        return PoseLandmarker.createFromOptions(vision, {
-          baseOptions: { modelAssetPath: modelUrl, delegate },
-          runningMode: "VIDEO",
-          numPoses: 1,
-          minPoseDetectionConfidence: 0.35,
-          minPosePresenceConfidence: 0.35,
-          minTrackingConfidence: 0.35,
-        });
-      }
-
-      async function initModel() {
-        const vision = await FilesetResolver.forVisionTasks(WASM_ROOT);
-
-        let lastErr = null;
-        for (const url of MODEL_URLS) {
-          try {
-            poseLandmarker = await createLandmarker(vision, url, "GPU");
-            drawingUtils = new DrawingUtils(ctx);
-            return;
-          } catch (e) { lastErr = e; }
-
-          try {
-            poseLandmarker = await createLandmarker(vision, url, "CPU");
-            drawingUtils = new DrawingUtils(ctx);
-            return;
-          } catch (e) { lastErr = e; }
-        }
-        throw lastErr || new Error("Failed to load pose model.");
-      }
-
-      async function startCamera() {
-        hideError();
-
-        const constraints = {
-          video: {
-            facingMode: "user",
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            frameRate: { ideal: 30, max: 30 }
-          },
-          audio: false
-        };
-
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-        video.srcObject = stream;
-
-        await new Promise((resolve) => { video.onloadedmetadata = () => resolve(); });
-        try { await video.play(); } catch {}
-
-        webcamRunning = true;
-        resetBtn.disabled = false;
-        startBtn.textContent = "Stop camera";
-
-        lastInferAt = 0;
-
-        resizeCanvasToVideo();
+      const person = result.landmarks[0];
+      if (showSkeleton) {
+        resizeCanvas();
         clearCanvas();
-
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = requestAnimationFrame(loop);
-      }
-
-      function stopCamera() {
-        webcamRunning = false;
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = null;
-
-        if (stream) {
-          for (const t of stream.getTracks()) t.stop();
-          stream = null;
-        }
-        video.srcObject = null;
-
+        drawingUtils.drawLandmarks(person, { radius: 3 });
+        drawingUtils.drawConnectors(person, PoseLandmarker.POSE_CONNECTIONS);
+      } else {
         clearCanvas();
-        startBtn.textContent = "Enable camera";
-        resetBtn.disabled = true;
       }
+      processJumpingJacks(person);
+    });
+  }
+  if (sessionRunning && !sessionPaused) updateTimerDisplay();
+  rafId = requestAnimationFrame(loop);
+}
 
-      function reset() {
-        repCount = 0;
-        phase = "unknown";
-        lastMetric = null;
-        checkmark.classList.remove("show");
+function resizeCanvas() {
+  const w = video.videoWidth, h = video.videoHeight;
+  if (!w || !h) return;
+  if (overlayCanvas.width !== w) overlayCanvas.width = w;
+  if (overlayCanvas.height !== h) overlayCanvas.height = h;
+}
+function clearCanvas() {
+  if (overlayCanvas.width && overlayCanvas.height) ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+}
 
-        legsRatioEma = null;
-        upEma = null;
+// ──────────── Camera ────────────
+async function startCamera() {
+  const constraints = {
+    video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } },
+    audio: false,
+  };
+  stream = await navigator.mediaDevices.getUserMedia(constraints);
+  video.srcObject = stream;
+  await new Promise(r => { video.onloadedmetadata = () => r(); });
+  try { await video.play(); } catch {}
+  video.classList.add('ready');
+  webcamRunning = true;
+  startLightingCheck();
+  resizeCanvas(); clearCanvas();
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(loop);
+}
 
-        openFrames = 0;
-        notOpenFrames = 0;
-        openLatched = false;
-        lastRepAt = 0;
+function stopCamera() {
+  webcamRunning = false;
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = null;
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  video.srcObject = null;
+  video.classList.remove('ready');
+  if (lightingCheckInterval) clearInterval(lightingCheckInterval);
+  clearCanvas();
+}
 
-        updateHUD({
-          reps: repCount,
-          metricLabel: "Jacks",
-          metricValue: "—",
-          phaseText: "—",
-          gate: "—"
-        });
-      }
+// ──────────── Session control ────────────
+async function doCountdown() {
+  countdownOverlay.classList.remove('hidden');
+  for (const n of [3, 2, 1, 'GO!']) {
+    countdownNum.textContent = n;
+    countdownNum.style.animation = 'none';
+    countdownNum.offsetHeight; // reflow
+    countdownNum.style.animation = '';
+    await new Promise(r => setTimeout(r, 900));
+  }
+  countdownOverlay.classList.add('hidden');
+}
 
-      startBtn.addEventListener("click", async () => {
+async function startSession() {
+  resetSession(false);
+  showScreen('screen-workout');
+  startStopBtn.textContent = '■ Stop';
+  startStopBtn.style.background = 'linear-gradient(135deg, #ff4b6e, #ff6b3d)';
+  pauseBtn.disabled = false;
+
+  try {
+    await startCamera();
+    await doCountdown();
+    sessionRunning = true;
+    sessionStartTime = performance.now();
+    sessionDurationMs = 0;
+    resetInactivityTimer();
+  } catch (e) {
+    stopCamera();
+    document.getElementById('errorMsg').textContent = `${e?.message || e}\n\nTips:\n• Use HTTPS or localhost\n• Allow camera permission\n• Close other camera apps\n• Improve lighting`;
+    showScreen('screen-error');
+  }
+}
+
+function pauseSession() {
+  if (!sessionRunning || sessionPaused) return;
+  sessionPaused = true;
+  sessionDurationMs += performance.now() - sessionStartTime;
+  pauseStartTime = performance.now();
+  pauseBtn.textContent = '▶ Resume';
+  if (inactivityPauseTimer) clearTimeout(inactivityPauseTimer);
+  showMilestone('⏸ Session paused');
+}
+
+function resumeSession() {
+  if (!sessionPaused) return;
+  sessionPaused = false;
+  sessionStartTime = performance.now();
+  pauseBtn.textContent = '⏸ Pause';
+  resetInactivityTimer();
+}
+
+function stopSession() {
+  if (!sessionRunning) return;
+  if (!sessionPaused) sessionDurationMs += performance.now() - sessionStartTime;
+  sessionRunning = false;
+  sessionPaused = false;
+  if (inactivityPauseTimer) clearTimeout(inactivityPauseTimer);
+  stopCamera();
+  showSummary();
+}
+
+function resetSession(full = true) {
+  repCount = 0; phase = 'unknown';
+  legsRatioEma = null; upEma = null;
+  openFrames = 0; notOpenFrames = 0; openLatched = false; lastRepAt = 0;
+  repTimestamps = [];
+  sessionRunning = false; sessionPaused = false;
+  sessionDurationMs = 0;
+  milestonesHit.clear();
+  goalCompleted = false;
+
+  repCountEl.textContent = '0';
+  updateRing(0);
+  sessionTimerEl.textContent = '0:00';
+  mobileTimer.textContent = '0:00';
+  rpmDisplayEl.textContent = '—'; mobileRpm.textContent = '—';
+  calDisplayEl.textContent = '0'; mobileCal.textContent = '0';
+  goalProgressFillEl.style.width = '0%';
+  goalFractionEl.textContent = `0 / ${dailyGoal}`;
+  phaseDotOpen.className = 'phase-dot';
+  phaseDotClosed.className = 'phase-dot';
+  confPose.style.width = '0%'; confDet.style.width = '0%';
+  confPosePct.textContent = '—'; confDetPct.textContent = '—';
+  silhouetteGuide.classList.remove('hidden');
+  pauseBtn.disabled = true;
+  pauseBtn.textContent = '⏸ Pause';
+  startStopBtn.textContent = '▶ Start';
+  startStopBtn.style.background = '';
+}
+
+// ──────────── Summary ────────────
+function showSummary() {
+  const reps = repCount;
+  const elapsed = sessionDurationMs;
+  const rpm = elapsed > 5000 ? Math.round((reps / elapsed) * 60000) : 0;
+  const cal = Math.round(reps * CALORIE_RATE);
+  const streak = saveStreak();
+  saveLeaderboard(reps, formatTime(elapsed), rpm || '—', cal);
+
+  document.getElementById('sumReps').textContent = reps;
+  document.getElementById('sumTime').textContent = formatTime(elapsed);
+  document.getElementById('sumRpm').textContent = rpm || '—';
+  document.getElementById('sumCal').textContent = cal;
+
+  // Dynamic messaging
+  let emoji = '💪', title = 'Workout Complete!', sub = 'Great effort!';
+  if (reps >= dailyGoal) { emoji = '🏆'; title = 'Goal Crushed!'; sub = `${streak}-day streak! You're incredible!`; }
+  else if (reps >= 50) { emoji = '🔥'; title = 'On Fire!'; sub = 'Impressive session!'; }
+  else if (reps >= 20) { emoji = '👏'; title = 'Nice Work!'; sub = 'Keep building that habit!'; }
+  else if (reps > 0) { emoji = '🌱'; title = 'Good Start!'; sub = 'Every rep counts!'; }
+  else { emoji = '😅'; title = 'See You Next Time!'; sub = 'Tomorrow is a new day!'; }
+
+  document.getElementById('summaryEmoji').textContent = emoji;
+  document.getElementById('summaryTitle').textContent = title;
+  document.getElementById('summarySubtitle').textContent = sub;
+
+  if (reps >= dailyGoal) launchConfetti();
+  showScreen('screen-summary');
+}
+
+// ──────────── Share / Copy ────────────
+function copyStats() {
+  const reps = document.getElementById('sumReps').textContent;
+  const time = document.getElementById('sumTime').textContent;
+  const rpm = document.getElementById('sumRpm').textContent;
+  const cal = document.getElementById('sumCal').textContent;
+  const text = `🏋️ JACK Workout\n${reps} reps · ${time} · ${rpm} RPM · ${cal} kcal\nTried with JACK – Jumping Jack Trainer`;
+  navigator.clipboard?.writeText(text).then(() => showMilestone('📋 Copied to clipboard!'));
+}
+
+async function shareResults() {
+  const c = document.getElementById('share-canvas');
+  c.width = 800; c.height = 450;
+  const cc = c.getContext('2d');
+  // Background
+  const grad = cc.createLinearGradient(0, 0, 800, 450);
+  grad.addColorStop(0, '#080c14'); grad.addColorStop(1, '#0e1421');
+  cc.fillStyle = grad; cc.fillRect(0, 0, 800, 450);
+  // Accent line
+  const lg = cc.createLinearGradient(0,0,800,0);
+  lg.addColorStop(0,'#00e682'); lg.addColorStop(1,'#00b5ff');
+  cc.fillStyle = lg; cc.fillRect(0, 0, 800, 5);
+  // Title
+  cc.fillStyle = '#e8f0fc'; cc.font = 'bold 72px Barlow Condensed, sans-serif';
+  cc.fillText('JACK', 60, 100);
+  cc.fillStyle = '#7a8ba8'; cc.font = '18px Barlow, sans-serif';
+  cc.fillText('Jumping Jack Trainer', 60, 130);
+  // Stats
+  const stats = [
+    { val: document.getElementById('sumReps').textContent, lbl: 'REPS', color: '#00e682', x: 60 },
+    { val: document.getElementById('sumTime').textContent, lbl: 'TIME', color: '#00b5ff', x: 260 },
+    { val: document.getElementById('sumRpm').textContent, lbl: 'RPM', color: '#ff6b3d', x: 440 },
+    { val: document.getElementById('sumCal').textContent, lbl: 'KCAL', color: '#ffd166', x: 600 },
+  ];
+  stats.forEach(s => {
+    cc.fillStyle = s.color; cc.font = 'bold 60px Barlow Condensed, sans-serif';
+    cc.fillText(s.val, s.x, 260);
+    cc.fillStyle = '#4a5a72'; cc.font = '600 13px Barlow, sans-serif';
+    cc.fillText(s.lbl, s.x, 285);
+  });
+  // Footer
+  cc.fillStyle = '#4a5a72'; cc.font = '13px Barlow, sans-serif';
+  cc.fillText(new Date().toLocaleDateString('en-US', {weekday:'long',year:'numeric',month:'long',day:'numeric'}), 60, 420);
+
+  c.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'jack-workout.png';
+    a.click(); URL.revokeObjectURL(url);
+  });
+}
+
+// ──────────── Init ────────────
+async function init() {
+  loadingBar.style.width = '20%';
+  loadingLabel.textContent = 'LOADING POSE ENGINE';
+
+  dailyGoal = getStorage('jack_goal', 50);
+  dailyGoalInput.value = dailyGoal;
+  const streak = loadStreak();
+  streakNum.textContent = streak;
+
+  try {
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera not supported in this browser.');
+    loadingBar.style.width = '40%';
+
+    const vision = await FilesetResolver.forVisionTasks(WASM_ROOT);
+    loadingBar.style.width = '70%';
+    loadingLabel.textContent = 'LOADING POSE MODEL';
+
+    let loaded = false;
+    for (const url of MODEL_URLS) {
+      for (const delegate of ['GPU','CPU']) {
         try {
-          if (webcamRunning) stopCamera();
-          else await startCamera();
-        } catch (e) {
-          stopCamera();
-          showError(
-            String(e?.message || e) +
-            "\n\nFixes:\n• Use https or http://localhost\n• Allow camera permission\n• Close other tabs using the camera\n• Improve lighting / move closer"
-          );
-        }
-      });
+          poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetPath: url, delegate },
+            runningMode: 'VIDEO', numPoses: 1,
+            minPoseDetectionConfidence: 0.35,
+            minPosePresenceConfidence: 0.35,
+            minTrackingConfidence: 0.35,
+          });
+          drawingUtils = new DrawingUtils(ctx);
+          loaded = true; break;
+        } catch {}
+      }
+      if (loaded) break;
+    }
+    if (!loaded) throw new Error('Failed to load pose model.');
 
-      resetBtn.addEventListener("click", reset);
-      jackModeBtn.addEventListener("click", () => {});
+    loadingBar.style.width = '100%';
+    loadingLabel.textContent = 'READY';
+    await new Promise(r => setTimeout(r, 400));
+    loadingOverlay.classList.add('gone');
+    showScreen('screen-welcome');
+  } catch (e) {
+    loadingOverlay.classList.add('gone');
+    document.getElementById('errorMsg').textContent = String(e?.message || e);
+    showScreen('screen-error');
+  }
+}
 
-      document.addEventListener("visibilitychange", () => {
-        if (document.hidden && webcamRunning) stopCamera();
-      });
+// ──────────── Events ────────────
+welcomeStartBtn.addEventListener('click', () => {
+  dailyGoal = Math.max(5, Math.min(500, parseInt(dailyGoalInput.value) || 50));
+  setStorage('jack_goal', dailyGoal);
+  startSession();
+});
 
-      (async () => {
-        try {
-          if (!navigator.mediaDevices?.getUserMedia) {
-            showError("This browser does not support camera access (getUserMedia).");
-            return;
-          }
+dailyGoalInput.addEventListener('change', () => {
+  dailyGoal = Math.max(5, Math.min(500, parseInt(dailyGoalInput.value) || 50));
+  setStorage('jack_goal', dailyGoal);
+});
 
-          await initModel();
+startStopBtn.addEventListener('click', () => {
+  if (sessionRunning) stopSession();
+  else startSession();
+});
 
-          startBtn.disabled = false;
-          resetBtn.disabled = false;
-          jackModeBtn.disabled = false;
+pauseBtn.addEventListener('click', () => {
+  if (sessionPaused) resumeSession();
+  else pauseSession();
+});
 
-          reset();
-        } catch (e) {
-          showError(String(e?.message || e));
-        }
-      })();
-    </script>
-  </body>
+resetWorkoutBtn.addEventListener('click', () => {
+  if (sessionRunning) stopCamera();
+  sessionRunning = false; sessionPaused = false;
+  resetSession();
+  startStopBtn.textContent = '▶ Start';
+  startStopBtn.style.background = '';
+});
+
+soundBtn.addEventListener('click', () => {
+  soundEnabled = !soundEnabled;
+  soundBtn.textContent = soundEnabled ? '🔊' : '🔇';
+  soundBtn.classList.toggle('active', soundEnabled);
+  if (soundEnabled) { getAudioCtx(); playTick(440, 0.1); }
+});
+
+skeletonToggle.addEventListener('click', () => {
+  showSkeleton = !showSkeleton;
+  skeletonToggle.classList.toggle('active', showSkeleton);
+  if (!showSkeleton) clearCanvas();
+});
+
+focusModeBtn.addEventListener('click', () => {
+  isFocusMode = !isFocusMode;
+  document.body.classList.toggle('focus-mode', isFocusMode);
+  focusModeBtn.style.color = isFocusMode ? 'var(--accent)' : '';
+});
+
+doAgainBtn.addEventListener('click', () => { resetSession(); startSession(); });
+homeBtn.addEventListener('click', () => { resetSession(); showScreen('screen-welcome'); const streak = loadStreak(); streakNum.textContent = streak; });
+shareBtn.addEventListener('click', shareResults);
+copyStatsBtn.addEventListener('click', copyStats);
+retryBtn.addEventListener('click', () => { showScreen('screen-welcome'); });
+
+// Leaderboard
+[document.getElementById('showLeaderboard'), document.getElementById('showLeaderboard2'), document.getElementById('showLeaderboard3')].forEach(el => {
+  el?.addEventListener('click', () => { renderLeaderboard(); leaderboardPopup.classList.add('show'); });
+});
+lbClose.addEventListener('click', () => leaderboardPopup.classList.remove('show'));
+leaderboardPopup.addEventListener('click', e => { if (e.target === leaderboardPopup) leaderboardPopup.classList.remove('show'); });
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (document.activeElement.tagName === 'INPUT') return;
+  switch (e.code) {
+    case 'Space': e.preventDefault(); startStopBtn.click(); break;
+    case 'KeyP': pauseBtn.click(); break;
+    case 'KeyR': resetWorkoutBtn.click(); break;
+    case 'KeyS': soundBtn.click(); break;
+    case 'KeyF': focusModeBtn.click(); break;
+  }
+});
+
+// Visibility change
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && sessionRunning && !sessionPaused) pauseSession();
+});
+
+window.addEventListener('resize', () => {
+  confettiCanvas.width = window.innerWidth;
+  confettiCanvas.height = window.innerHeight;
+});
+
+init();
+</script>
+</body>
 </html>
