@@ -954,6 +954,19 @@
     <div class="welcome-logo">JUSTIFY</div>
     <div class="welcome-tagline">Earn Your Screen Time</div>
     <div class="welcome-card">
+
+      <!-- Auth row -->
+      <div id="authSection" style="margin-bottom:16px;">
+        <button class="btn-secondary" id="loginBtn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px;">
+          <svg width="18" height="18" viewBox="0 0 18 18"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/><path d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
+          Sign in with Google
+        </button>
+        <div id="userInfo" style="display:none;align-items:center;justify-content:space-between;padding:10px 12px;background:rgba(0,230,130,0.07);border:1px solid rgba(0,230,130,0.2);border-radius:var(--radius-sm);">
+          <span id="userEmail" style="font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;"></span>
+          <button id="logoutBtn" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;flex-shrink:0;padding:0 0 0 8px;">Sign out</button>
+        </div>
+      </div>
+
       <div class="goal-row">
         <label for="dailyGoalInput">Daily Goal</label>
         <input class="goal-input" id="dailyGoalInput" type="number" min="5" max="500" value="50"/>
@@ -1174,6 +1187,13 @@
 
 <script type="module">
 import { PoseLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/+esm";
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+// ──────────── Supabase ────────────
+// Replace these with your actual values from supabase.com → Project Settings → API
+const SUPABASE_URL = 'https://vkgqemxdvjsbiajhzlmu.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrZ3FlbXhkdmpzYmlhamh6bG11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzMDk0MzQsImV4cCI6MjA4Nzg4NTQzNH0.maCKcwnmcEkKXf7mVqExQcVIBzhei18kZWdNHjL7qGI';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ──────────── Constants ────────────
 const MODEL_URLS = [
@@ -1331,6 +1351,10 @@ let dailyGoal = 50;
 // Audio context
 let audioCtx = null;
 
+// ──────────── Auth state ────────────
+let currentUser = null;
+let userProfile = null;
+
 // ──────────── Helpers ────────────
 function hypot2(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
 function ema(prev, next, alpha) { return (prev == null) ? next : (prev * (1 - alpha) + next * alpha); }
@@ -1352,14 +1376,14 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
 }
 
-// ──────────── LocalStorage ────────────
+// ──────────── LocalStorage (fallback) ────────────
 function getStorage(key, fallback) {
   try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
   catch { return fallback; }
 }
 function setStorage(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} }
 
-function loadStreak() {
+function loadStreakLocal() {
   const data = getStorage('justify_streak', { count: 0, lastDate: null });
   const today = new Date().toDateString();
   if (data.lastDate === today) return data.count;
@@ -1367,14 +1391,20 @@ function loadStreak() {
   if (data.lastDate === yesterday) return data.count;
   return 0;
 }
-function saveStreak() {
+
+async function saveStreak() {
   const today = new Date().toDateString();
   const data = getStorage('justify_streak', { count: 0, lastDate: null });
   const yesterday = new Date(Date.now() - 86400000).toDateString();
   let count = data.lastDate === yesterday ? data.count + 1 : (data.lastDate === today ? data.count : 1);
   setStorage('justify_streak', { count, lastDate: today });
+
+  if (currentUser) {
+    await supabase.from('profiles').update({ streak: count, last_workout_date: today }).eq('id', currentUser.id);
+  }
   return count;
 }
+
 function saveLeaderboard(reps, duration, cal) {
   const board = getStorage('justify_leaderboard', []);
   board.push({ reps, duration, cal, date: new Date().toLocaleDateString() });
@@ -1393,6 +1423,88 @@ function renderLeaderboard() {
         <div class="lb-meta">${s.date} · ${s.cal} kcal</div>
       </div>
     </div>`).join('');
+}
+
+// ──────────── Auth ────────────
+async function signInWithGoogle() {
+  await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin }
+  });
+}
+
+async function signOut() {
+  await supabase.auth.signOut();
+  currentUser = null;
+  userProfile = null;
+  updateAuthUI();
+  // Fall back to localStorage values
+  streakNum.textContent = loadStreakLocal();
+  dailyGoal = getStorage('justify_goal', 50);
+  dailyGoalInput.value = dailyGoal;
+}
+
+async function createProfile() {
+  const { data } = await supabase.from('profiles').insert({
+    id: currentUser.id,
+    email: currentUser.email,
+    goal: getStorage('justify_goal', 50),
+    streak: loadStreakLocal(),
+    is_pro: false
+  }).select().single();
+  userProfile = data;
+}
+
+async function loadProfile() {
+  const { data, error } = await supabase
+    .from('profiles').select('*').eq('id', currentUser.id).single();
+
+  if (error || !data) {
+    await createProfile();
+  } else {
+    userProfile = data;
+    // Sync cloud data into app
+    dailyGoal = userProfile.goal || 50;
+    dailyGoalInput.value = dailyGoal;
+    streakNum.textContent = userProfile.streak || 0;
+    setStorage('justify_goal', dailyGoal);
+  }
+  updateAuthUI();
+}
+
+async function initAuth() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) {
+    currentUser = session.user;
+    await loadProfile();
+  }
+
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    if (session?.user) {
+      currentUser = session.user;
+      await loadProfile();
+    } else {
+      currentUser = null;
+      userProfile = null;
+      updateAuthUI();
+    }
+  });
+}
+
+function updateAuthUI() {
+  const loginBtn = document.getElementById('loginBtn');
+  const userInfo = document.getElementById('userInfo');
+  const userEmailEl = document.getElementById('userEmail');
+  if (!loginBtn || !userInfo) return;
+
+  if (currentUser) {
+    loginBtn.style.display = 'none';
+    userInfo.style.display = 'flex';
+    if (userEmailEl) userEmailEl.textContent = currentUser.email;
+  } else {
+    loginBtn.style.display = 'block';
+    userInfo.style.display = 'none';
+  }
 }
 
 // ──────────── Audio ────────────
@@ -1902,10 +2014,12 @@ async function init() {
   loadingBar.style.width = '20%';
   loadingLabel.textContent = 'LOADING POSE ENGINE';
 
+  // Auth first — non-blocking, runs in background
+  initAuth().catch(() => {});
+
   dailyGoal = getStorage('justify_goal', 50);
   dailyGoalInput.value = dailyGoal;
-  const streak = loadStreak();
-  streakNum.textContent = streak;
+  streakNum.textContent = loadStreakLocal();
 
   try {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera not supported in this browser.');
@@ -1947,15 +2061,21 @@ async function init() {
 }
 
 // ──────────── Events ────────────
+document.getElementById('loginBtn')?.addEventListener('click', signInWithGoogle);
+document.getElementById('logoutBtn')?.addEventListener('click', signOut);
+
 welcomeStartBtn.addEventListener('click', () => {
   dailyGoal = Math.max(5, Math.min(500, parseInt(dailyGoalInput.value) || 50));
   setStorage('justify_goal', dailyGoal);
   startSession();
 });
 
-dailyGoalInput.addEventListener('change', () => {
+dailyGoalInput.addEventListener('change', async () => {
   dailyGoal = Math.max(5, Math.min(500, parseInt(dailyGoalInput.value) || 50));
   setStorage('justify_goal', dailyGoal);
+  if (currentUser) {
+    await supabase.from('profiles').update({ goal: dailyGoal }).eq('id', currentUser.id);
+  }
 });
 
 // Mobile overlay buttons
@@ -1993,7 +2113,7 @@ focusModeBtn?.addEventListener('click', () => {
 });
 
 doAgainBtn.addEventListener('click', () => { resetSession(); startSession(); });
-homeBtn.addEventListener('click', () => { resetSession(); showScreen('screen-welcome'); streakNum.textContent = loadStreak(); });
+homeBtn.addEventListener('click', () => { resetSession(); showScreen('screen-welcome'); streakNum.textContent = userProfile ? userProfile.streak : loadStreakLocal(); });
 shareBtn.addEventListener('click', shareResults);
 copyStatsBtn.addEventListener('click', copyStats);
 retryBtn.addEventListener('click', () => { showScreen('screen-welcome'); });
