@@ -1013,7 +1013,7 @@
         <!-- Center: stat pills -->
         <div class="top-stats">
           <div class="top-stat"><span class="top-stat-val timer-value" id="mobileTimer">0:00</span><span class="top-stat-lbl">TIME</span></div>
-          <div class="top-stat"><span class="top-stat-val rpm-value" id="mobileRpm">—</span><span class="top-stat-lbl">RPM</span></div>
+
           <div class="top-stat"><span class="top-stat-val cal-value" id="mobileCal">0</span><span class="top-stat-lbl">CAL</span></div>
         </div>
         <!-- Right: sound + lighting warn -->
@@ -1074,11 +1074,7 @@
           <div class="panel-card-label">Session Time</div>
           <div class="panel-card-value timer-value" id="sessionTimer">0:00</div>
         </div>
-        <div class="panel-card">
-          <div class="panel-card-label">Reps / Min</div>
-          <div class="panel-card-value rpm-value" id="rpmDisplay">—</div>
-          <div class="panel-card-sub" id="paceLabel">—</div>
-        </div>
+
         <div class="panel-card">
           <div class="panel-card-label">Est. Calories</div>
           <div class="panel-card-value cal-value" id="calDisplay">0</div>
@@ -1146,16 +1142,12 @@
           <div class="summary-stat-lbl">Total Reps</div>
         </div>
         <div class="summary-stat">
-          <div class="summary-stat-val" id="sumTime" style="color:var(--accent2)">0:00</div>
-          <div class="summary-stat-lbl">Duration</div>
-        </div>
-        <div class="summary-stat">
-          <div class="summary-stat-val" id="sumRpm" style="color:var(--accent3)">—</div>
-          <div class="summary-stat-lbl">Avg RPM</div>
-        </div>
-        <div class="summary-stat">
           <div class="summary-stat-val" id="sumCal" style="color:var(--gold)">0</div>
           <div class="summary-stat-lbl">Calories</div>
+        </div>
+        <div class="summary-stat">
+          <div class="summary-stat-val" id="sumTime" style="color:var(--accent2)">0:00</div>
+          <div class="summary-stat-lbl">Duration</div>
         </div>
       </div>
       <div class="summary-actions">
@@ -1200,7 +1192,7 @@ const JACK_OPEN_STREAK_FRAMES = 2;
 const TARGET_FPS = 24;
 const MIN_INFER_MS = 1000 / TARGET_FPS;
 const INACTIVITY_PAUSE_MS = 6000;
-const CALORIE_RATE = 0.2; // kcal per rep (approx)
+const CALORIE_RATE = 1 / 7; // 1 kcal per 7 reps
 
 const MILESTONES = [10, 25, 50, 75, 100, 150, 200];
 const MILESTONE_MSGS = {
@@ -1243,8 +1235,6 @@ const countdownNum = document.getElementById('countdownNum');
 
 // Desktop panel refs
 const sessionTimerEl = document.getElementById('sessionTimer');
-const rpmDisplayEl = document.getElementById('rpmDisplay');
-const paceLabelEl = document.getElementById('paceLabel');
 const calDisplayEl = document.getElementById('calDisplay');
 const goalFractionDesktop = document.getElementById('goalFractionDesktop');
 const goalProgressFillDesktop = document.getElementById('goalProgressFillDesktop');
@@ -1257,7 +1247,6 @@ const confDetPct = document.getElementById('confDetPct');
 
 // Mobile overlay refs
 const mobileTimer = document.getElementById('mobileTimer');
-const mobileRpm = document.getElementById('mobileRpm');
 const mobileCal = document.getElementById('mobileCal');
 const goalProgressFillEl = document.getElementById('goalProgressFill');
 const goalFractionEl = document.getElementById('goalFraction');
@@ -1386,9 +1375,9 @@ function saveStreak() {
   setStorage('justify_streak', { count, lastDate: today });
   return count;
 }
-function saveLeaderboard(reps, duration, rpm, cal) {
+function saveLeaderboard(reps, duration, cal) {
   const board = getStorage('justify_leaderboard', []);
-  board.push({ reps, duration, rpm, cal, date: new Date().toLocaleDateString() });
+  board.push({ reps, duration, cal, date: new Date().toLocaleDateString() });
   board.sort((a, b) => b.reps - a.reps);
   setStorage('justify_leaderboard', board.slice(0, 10));
 }
@@ -1401,7 +1390,7 @@ function renderLeaderboard() {
       <div class="lb-rank">${medals[i] || (i+1)}</div>
       <div class="lb-info">
         <div class="lb-reps">${s.reps} reps</div>
-        <div class="lb-meta">${s.date} · ${s.rpm} RPM · ${s.cal} kcal</div>
+        <div class="lb-meta">${s.date} · ${s.cal} kcal</div>
       </div>
     </div>`).join('');
 }
@@ -1542,35 +1531,20 @@ function updateTimerDisplay() {
   mobileTimer.textContent = fmt;
 }
 
-function calcRPM() {
-  const now = performance.now();
-  const window60 = repTimestamps.filter(t => now - t < 60000);
-  if (window60.length < 2) return null;
-  const span = (now - window60[0]) / 60000;
-  return Math.round(window60.length / span);
-}
-
 function updateStats() {
-  const rpm = calcRPM();
-  const rpmStr = rpm ? String(rpm) : '—';
-  const cal = Math.round(repCount * CALORIE_RATE);
+  const cal = Math.floor(repCount / 7);
   const pct = Math.min((repCount / dailyGoal) * 100, 100);
   const fraction = `${repCount} / ${dailyGoal}`;
 
   // Mobile overlay
-  mobileRpm.textContent = rpmStr;
   mobileCal.textContent = cal;
   goalProgressFillEl.style.width = pct + '%';
   goalFractionEl.textContent = fraction;
 
   // Desktop panel
-  if (rpmDisplayEl) rpmDisplayEl.textContent = rpmStr;
   if (calDisplayEl) calDisplayEl.textContent = cal;
   if (goalProgressFillDesktop) goalProgressFillDesktop.style.width = pct + '%';
   if (goalFractionDesktop) goalFractionDesktop.textContent = fraction;
-  if (rpm && paceLabelEl) {
-    paceLabelEl.textContent = rpm >= 40 ? 'Excellent pace!' : rpm >= 25 ? 'Good pace' : 'Steady pace';
-  }
 }
 
 // ──────────── Inactivity detection ────────────
@@ -1830,12 +1804,10 @@ function resetSession(full = true) {
   repCountEl.textContent = '0';
   updateRing(0);
   mobileTimer.textContent = '0:00';
-  mobileRpm.textContent = '—';
   mobileCal.textContent = '0';
   goalProgressFillEl.style.width = '0%';
   goalFractionEl.textContent = `0 / ${dailyGoal}`;
   if (sessionTimerEl) sessionTimerEl.textContent = '0:00';
-  if (rpmDisplayEl) rpmDisplayEl.textContent = '—';
   if (calDisplayEl) calDisplayEl.textContent = '0';
   if (goalProgressFillDesktop) goalProgressFillDesktop.style.width = '0%';
   if (goalFractionDesktop) goalFractionDesktop.textContent = `0 / ${dailyGoal}`;
@@ -1851,14 +1823,12 @@ function resetSession(full = true) {
 function showSummary() {
   const reps = repCount;
   const elapsed = sessionDurationMs;
-  const rpm = elapsed > 5000 ? Math.round((reps / elapsed) * 60000) : 0;
-  const cal = Math.round(reps * CALORIE_RATE);
+  const cal = Math.floor(reps / 7);
   const streak = saveStreak();
-  saveLeaderboard(reps, formatTime(elapsed), rpm || '—', cal);
+  saveLeaderboard(reps, formatTime(elapsed), cal);
 
   document.getElementById('sumReps').textContent = reps;
   document.getElementById('sumTime').textContent = formatTime(elapsed);
-  document.getElementById('sumRpm').textContent = rpm || '—';
   document.getElementById('sumCal').textContent = cal;
 
   // Dynamic messaging
@@ -1881,9 +1851,8 @@ function showSummary() {
 function copyStats() {
   const reps = document.getElementById('sumReps').textContent;
   const time = document.getElementById('sumTime').textContent;
-  const rpm = document.getElementById('sumRpm').textContent;
   const cal = document.getElementById('sumCal').textContent;
-  const text = `🏋️ JUSTIFY Workout\n${reps} reps · ${time} · ${rpm} RPM · ${cal} kcal\njustify.app`;
+  const text = `🏋️ JUSTIFY Workout\n${reps} reps · ${time} · ${cal} kcal\njustify.app`;
   navigator.clipboard?.writeText(text).then(() => showMilestone('📋 Copied to clipboard!'));
 }
 
@@ -1908,8 +1877,7 @@ async function shareResults() {
   const stats = [
     { val: document.getElementById('sumReps').textContent, lbl: 'REPS', color: '#00e682', x: 60 },
     { val: document.getElementById('sumTime').textContent, lbl: 'TIME', color: '#00b5ff', x: 260 },
-    { val: document.getElementById('sumRpm').textContent, lbl: 'RPM', color: '#ff6b3d', x: 440 },
-    { val: document.getElementById('sumCal').textContent, lbl: 'KCAL', color: '#ffd166', x: 600 },
+    { val: document.getElementById('sumCal').textContent, lbl: 'KCAL', color: '#ffd166', x: 460 },
   ];
   stats.forEach(s => {
     cc.fillStyle = s.color; cc.font = 'bold 60px Barlow Condensed, sans-serif';
