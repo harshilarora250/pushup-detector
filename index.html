@@ -164,91 +164,209 @@
 
     /* ─────────── WORKOUT SCREEN ─────────── */
     #screen-workout {
-      flex-direction: column;
+      flex-direction: row;
       background: var(--bg);
     }
-    .workout-layout {
-      flex: 1; display: grid;
-      grid-template-columns: 1fr 280px;
-      gap: 0; overflow: hidden;
+
+    /* Camera always fills its container */
+    .camera-area {
+      position: relative;
+      flex: 1;
+      background: #000;
+      overflow: hidden;
+      min-width: 0;
       min-height: 0;
     }
 
-    /* ─────────── MOBILE OVERHAUL ─────────── */
+    /* Desktop shell: camera left, sidebar+controls right */
+    .desktop-shell {
+      width: 280px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid var(--border);
+      background: var(--bg2);
+    }
+
+    /* ── OVERLAY ELEMENTS (always on top of camera) ── */
+
+    /* Top bar: skeleton | stats | sound */
+    .overlay-top {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      z-index: 6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 12px 12px 8px;
+      background: linear-gradient(to bottom, rgba(8,12,20,0.7) 0%, transparent 100%);
+    }
+    .top-stats {
+      display: flex; gap: 6px;
+    }
+    .top-stat {
+      display: flex; flex-direction: column; align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 10px;
+      backdrop-filter: blur(12px);
+      min-width: 52px;
+    }
+    .top-stat-val {
+      font-family: var(--font-display);
+      font-size: 16px; font-weight: 700; line-height: 1;
+    }
+    .top-stat-lbl {
+      font-size: 8px; color: var(--text3);
+      letter-spacing: 1.5px; text-transform: uppercase;
+      margin-top: 2px;
+    }
+    .top-right {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .icon-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      padding: 6px 8px;
+      cursor: pointer;
+      backdrop-filter: blur(12px);
+      transition: all var(--transition);
+      line-height: 1;
+    }
+    .icon-btn:hover { border-color: rgba(255,255,255,0.2); }
+    .icon-btn.active { color: var(--accent2); border-color: rgba(0,181,255,0.3); }
+
+    /* Goal progress bar under top bar */
+    .overlay-goal {
+      position: absolute;
+      top: 60px; left: 12px; right: 12px;
+      z-index: 6;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .overlay-goal-track {
+      flex: 1; height: 3px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 99px; overflow: hidden;
+    }
+    .overlay-goal-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00e682, #00b5ff);
+      border-radius: 99px;
+      transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+    }
+    .overlay-goal-label {
+      font-size: 10px; font-weight: 600;
+      color: var(--text2); letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    /* Rep counter: centred in camera */
+    .rep-overlay {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 5;
+      text-align: center;
+    }
+
+    /* Bottom controls overlay */
+    .overlay-bottom {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      z-index: 6;
+      background: linear-gradient(to top, rgba(8,12,20,0.85) 0%, transparent 100%);
+      padding: 20px 20px 16px;
+    }
+    .overlay-bottom-inner {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+    }
+    .ov-btn {
+      border-radius: 14px;
+      font-family: var(--font-display);
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      transition: all var(--transition);
+      backdrop-filter: blur(12px);
+    }
+    .ov-btn:disabled { opacity: 0.35; pointer-events: none; }
+    .ov-btn-primary {
+      background: linear-gradient(135deg, #00e682, #00b5ff);
+      border-color: transparent;
+      color: #080c14;
+      font-size: 18px;
+      padding: 16px 40px;
+      letter-spacing: 0.5px;
+    }
+    .ov-btn-primary:hover { box-shadow: 0 6px 28px rgba(0,230,130,0.4); transform: translateY(-1px); }
+    .ov-btn-primary:active { transform: translateY(0); }
+    .ov-btn-secondary {
+      background: var(--surface);
+      color: var(--text2);
+      font-size: 20px;
+      width: 52px; height: 52px;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0;
+    }
+    .ov-btn-secondary:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+    .ov-btn-pause {
+      background: rgba(255,209,102,0.12);
+      border-color: rgba(255,209,102,0.25);
+      color: var(--gold);
+      font-size: 20px;
+      width: 52px; height: 52px;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0;
+    }
+    .ov-btn-pause:hover { background: rgba(255,209,102,0.2); }
+
+    /* ── MOBILE: camera is truly full screen ── */
     @media (max-width: 700px) {
-      /* Welcome screen */
-      #screen-welcome { padding: 20px 16px; justify-content: flex-start; padding-top: max(48px, env(safe-area-inset-top) + 24px); }
-      .welcome-logo { font-size: clamp(56px, 22vw, 90px); }
-      .welcome-tagline { font-size: 12px; margin-bottom: 28px; }
-      .welcome-card { padding: 20px; }
+      #screen-workout { flex-direction: column; }
+      .camera-area { flex: 1; width: 100%; }
+      .desktop-shell { display: none; }
 
-      /* Workout layout: camera fills screen, sidebar hidden, stats float on top */
-      .workout-layout { grid-template-columns: 1fr; }
-      .side-panel { display: none; }
-      .mobile-hud { display: flex !important; }
+      /* Safe area top for notch */
+      .overlay-top {
+        padding-top: max(12px, env(safe-area-inset-top) + 8px);
+      }
+      .overlay-goal {
+        top: max(68px, env(safe-area-inset-top) + 60px);
+      }
 
-      /* Camera fills full remaining height */
-      .camera-area { height: 100%; }
-
-      /* Skeleton toggle: smaller, top-left safe */
-      .skeleton-toggle { top: max(12px, env(safe-area-inset-top) + 8px); left: 12px; font-size: 10px; padding: 6px 8px; }
-
-      /* Lighting warn: top-right safe */
-      .lighting-warn { top: max(12px, env(safe-area-inset-top) + 8px); right: 12px; }
-
-      /* Form badge: just below top pills */
-      .form-badge { top: max(56px, env(safe-area-inset-top) + 50px); font-size: 11px; }
-
-      /* Rep ring: bigger, centered vertically in camera */
-      .rep-overlay { bottom: auto; top: 50%; transform: translate(-50%, -50%); }
+      /* Bigger rep counter on mobile */
       .rep-ring-wrap { width: 160px; height: 160px; }
       .rep-count { font-size: 64px; }
 
-      /* Controls bar: safe area bottom padding, larger touch targets */
-      .controls-bar {
-        padding: 10px 12px;
-        padding-bottom: max(12px, env(safe-area-inset-bottom) + 8px);
-        gap: 8px;
-        flex-wrap: wrap;
+      /* Bottom safe area for home bar */
+      .overlay-bottom {
+        padding-bottom: max(20px, env(safe-area-inset-bottom) + 16px);
       }
-      .btn-control { padding: 12px 16px; font-size: 14px; flex: 1; justify-content: center; min-width: 0; }
-      .btn-control.start-btn { flex: 2; padding: 14px 20px; font-size: 16px; }
-      .btn-focus { display: none; }
-      #showLeaderboard3 { display: none; }
 
-      /* Mobile HUD: safe area top */
-      .mobile-hud { padding: max(12px, env(safe-area-inset-top) + 8px) 10px 10px; }
-      .mobile-stat { padding: 5px 8px; }
-      .mobile-stat-val { font-size: 16px; }
-      .mobile-stat-lbl { font-size: 8px; }
+      /* Bigger touch targets */
+      .ov-btn-primary { font-size: 20px; padding: 18px 48px; }
+      .ov-btn-secondary, .ov-btn-pause { width: 60px; height: 60px; font-size: 22px; }
 
-      /* Summary screen: scrollable on small phones */
-      #screen-summary {
-        padding: 16px;
-        padding-top: max(24px, env(safe-area-inset-top) + 16px);
-        padding-bottom: max(24px, env(safe-area-inset-bottom) + 16px);
-        overflow-y: auto;
-        align-items: flex-start;
-        justify-content: flex-start;
+      /* Form badge below goal bar */
+      .form-badge { top: max(80px, env(safe-area-inset-top) + 72px); }
+
+      /* Lighting warn inside top-right */
+      .lighting-warn { position: static; opacity: 0; transition: opacity 0.3s ease; }
+      .lighting-warn.show { opacity: 1; }
+
+      /* Milestone toast safe area */
+      .milestone-toast {
+        top: max(16px, env(safe-area-inset-top) + 8px);
+        max-width: calc(100vw - 32px);
+        white-space: normal; text-align: center;
       }
-      .summary-card { width: 100%; border-radius: var(--radius-sm); }
-      .summary-header { padding: 20px 20px 16px; }
-      .summary-emoji { font-size: 32px; }
-      .summary-title { font-size: 24px; }
-      .summary-stats { padding: 16px 20px; gap: 12px; }
-      .summary-stat-val { font-size: 30px; }
-      .summary-actions { padding: 0 20px 20px; gap: 8px; }
-      .btn-primary { font-size: 16px; padding: 14px; }
-      .btn-secondary { font-size: 14px; padding: 12px; }
 
-      /* Error screen */
-      #screen-error { padding: 16px; }
-      .error-card { padding: 24px 20px; }
-
-      /* Milestone toast: safe area */
-      .milestone-toast { top: max(16px, env(safe-area-inset-top) + 8px); font-size: 14px; padding: 10px 18px; max-width: calc(100vw - 32px); white-space: normal; text-align: center; }
-
-      /* Leaderboard slides up from bottom as a sheet */
+      /* Leaderboard as bottom sheet */
       .leaderboard-popup { align-items: flex-end; padding: 0; }
       .leaderboard-inner {
         width: 100%;
@@ -258,16 +376,21 @@
       }
       .lb-list { max-height: 50vh; }
 
-      /* Countdown */
-      .countdown-num { font-size: clamp(100px, 35vw, 160px); }
+      /* Summary scrollable */
+      #screen-summary {
+        overflow-y: auto;
+        align-items: flex-start; justify-content: flex-start;
+        padding: 16px;
+        padding-top: max(24px, env(safe-area-inset-top) + 16px);
+        padding-bottom: max(24px, env(safe-area-inset-bottom) + 16px);
+      }
+      .summary-card { width: 100%; border-radius: var(--radius-sm); }
     }
 
-    /* Tiny phones */
     @media (max-width: 380px) {
-      .welcome-logo { font-size: 52px; }
       .rep-ring-wrap { width: 140px; height: 140px; }
-      .rep-count { font-size: 56px; }
-      .btn-control { padding: 11px 10px; font-size: 13px; }
+      .rep-count { font-size: 54px; }
+      .ov-btn-primary { font-size: 17px; padding: 15px 36px; }
     }
 
     /* Camera area */
@@ -366,7 +489,7 @@
 
     /* Form feedback badge */
     .form-badge {
-      position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+      position: absolute; top: 82px; left: 50%; transform: translateX(-50%);
       z-index: 5;
       padding: 6px 14px;
       border-radius: 99px;
@@ -382,22 +505,20 @@
 
     /* Lighting warn */
     .lighting-warn {
-      position: absolute; top: 16px; right: 16px;
-      z-index: 6;
-      padding: 6px 12px;
-      border-radius: 99px;
+      padding: 5px 8px;
+      border-radius: 8px;
       background: rgba(255,209,102,0.15);
       border: 1px solid rgba(255,209,102,0.3);
       color: var(--gold);
       font-size: 11px; font-weight: 600;
       opacity: 0;
       transition: opacity 0.3s ease;
+      white-space: nowrap;
     }
     .lighting-warn.show { opacity: 1; }
 
     /* Skeleton toggle */
     .skeleton-toggle {
-      position: absolute; top: 16px; left: 16px;
       z-index: 6;
       padding: 7px 10px;
       border-radius: var(--radius-sm);
@@ -409,6 +530,8 @@
       cursor: pointer;
       display: flex; align-items: center; gap: 5px;
       transition: all var(--transition);
+      flex-shrink: 0;
+      white-space: nowrap;
     }
     .skeleton-toggle:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
     .skeleton-toggle .dot {
@@ -850,81 +973,102 @@
 
   <!-- WORKOUT SCREEN -->
   <div class="screen" id="screen-workout">
-    <div class="workout-layout">
 
-      <!-- Camera -->
-      <div class="camera-area" id="cameraArea">
-        <video id="video" autoplay playsinline muted></video>
-        <canvas id="overlay"></canvas>
+    <!-- Camera fills 100% of screen always -->
+    <div class="camera-area" id="cameraArea">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="overlay"></canvas>
 
-        <!-- SVG gradients for ring -->
-        <svg width="0" height="0" style="position:absolute">
-          <defs>
-            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="#00e682"/>
-              <stop offset="100%" stop-color="#00b5ff"/>
-            </linearGradient>
-          </defs>
+      <!-- SVG gradients -->
+      <svg width="0" height="0" style="position:absolute">
+        <defs>
+          <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#00e682"/>
+            <stop offset="100%" stop-color="#00b5ff"/>
+          </linearGradient>
+        </defs>
+      </svg>
+
+      <div class="camera-vignette"></div>
+
+      <!-- Silhouette guide -->
+      <div class="silhouette-guide" id="silhouetteGuide">
+        <svg viewBox="0 0 100 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="20" r="14" stroke="white" stroke-width="2.5" fill="none"/>
+          <line x1="50" y1="34" x2="50" y2="100" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="50" y1="55" x2="15" y2="80" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="50" y1="55" x2="85" y2="80" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="50" y1="100" x2="28" y2="160" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+          <line x1="50" y1="100" x2="72" y2="160" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
         </svg>
+      </div>
 
-        <div class="camera-vignette"></div>
-
-        <!-- Silhouette guide -->
-        <div class="silhouette-guide" id="silhouetteGuide">
-          <svg viewBox="0 0 100 220" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="50" cy="20" r="14" stroke="white" stroke-width="2.5" fill="none"/>
-            <line x1="50" y1="34" x2="50" y2="100" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-            <line x1="50" y1="55" x2="15" y2="80" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-            <line x1="50" y1="55" x2="85" y2="80" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-            <line x1="50" y1="100" x2="28" y2="160" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-            <line x1="50" y1="100" x2="72" y2="160" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-          </svg>
-        </div>
-
-        <!-- Skeleton toggle -->
+      <!-- ── TOP BAR OVERLAY ── -->
+      <div class="overlay-top" id="overlayTop">
+        <!-- Left: skeleton toggle -->
         <button class="skeleton-toggle active" id="skeletonToggle" aria-label="Toggle skeleton overlay">
           <div class="dot"></div>
           Skeleton
         </button>
-
-        <!-- Form feedback -->
-        <div class="form-badge" id="formBadge">Arms higher!</div>
-
-        <!-- Lighting warning -->
-        <div class="lighting-warn" id="lightingWarn">⚠ Low light</div>
-
-        <!-- Mobile HUD -->
-        <div class="mobile-hud" id="mobileHud">
-          <div class="mobile-stat"><div class="mobile-stat-val timer-value" id="mobileTimer">0:00</div><div class="mobile-stat-lbl">Time</div></div>
-          <div class="mobile-stat"><div class="mobile-stat-val rpm-value" id="mobileRpm">—</div><div class="mobile-stat-lbl">RPM</div></div>
-          <div class="mobile-stat"><div class="mobile-stat-val cal-value" id="mobileCal">0</div><div class="mobile-stat-lbl">Cal</div></div>
+        <!-- Center: stat pills -->
+        <div class="top-stats">
+          <div class="top-stat"><span class="top-stat-val timer-value" id="mobileTimer">0:00</span><span class="top-stat-lbl">TIME</span></div>
+          <div class="top-stat"><span class="top-stat-val rpm-value" id="mobileRpm">—</span><span class="top-stat-lbl">RPM</span></div>
+          <div class="top-stat"><span class="top-stat-val cal-value" id="mobileCal">0</span><span class="top-stat-lbl">CAL</span></div>
         </div>
-
-        <!-- Rep counter + ring -->
-        <div class="rep-overlay" id="repOverlay">
-          <div class="rep-ring-wrap">
-            <svg class="rep-ring-svg" id="repRingSvg" viewBox="0 0 130 130">
-              <circle class="rep-ring-bg" cx="65" cy="65" r="56" stroke-width="6"/>
-              <circle class="rep-ring-fg" id="repRingFg" cx="65" cy="65" r="56" stroke-width="6"
-                      stroke-dasharray="351.86" stroke-dashoffset="351.86"/>
-            </svg>
-            <div class="rep-number">
-              <div class="rep-count" id="repCount">0</div>
-              <div class="rep-label">REPS</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Flash -->
-        <div class="rep-flash" id="repFlash"></div>
-
-        <!-- Countdown -->
-        <div class="countdown-overlay hidden" id="countdownOverlay">
-          <div class="countdown-num" id="countdownNum">3</div>
+        <!-- Right: sound + lighting warn -->
+        <div class="top-right">
+          <div class="lighting-warn" id="lightingWarn">⚠</div>
+          <button class="icon-btn btn-sound" id="soundBtn" aria-label="Toggle sound">🔇</button>
         </div>
       </div>
 
-      <!-- Side Panel -->
+      <!-- ── GOAL PROGRESS BAR ── -->
+      <div class="overlay-goal">
+        <div class="overlay-goal-track">
+          <div class="overlay-goal-fill" id="goalProgressFill" style="width:0%"></div>
+        </div>
+        <span class="overlay-goal-label" id="goalFraction">0 / 50</span>
+      </div>
+
+      <!-- ── REP COUNTER (centre) ── -->
+      <div class="rep-overlay" id="repOverlay">
+        <div class="rep-ring-wrap">
+          <svg class="rep-ring-svg" id="repRingSvg" viewBox="0 0 130 130">
+            <circle class="rep-ring-bg" cx="65" cy="65" r="56" stroke-width="6"/>
+            <circle class="rep-ring-fg" id="repRingFg" cx="65" cy="65" r="56" stroke-width="6"
+                    stroke-dasharray="351.86" stroke-dashoffset="351.86"/>
+          </svg>
+          <div class="rep-number">
+            <div class="rep-count" id="repCount">0</div>
+            <div class="rep-label">REPS</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form feedback -->
+      <div class="form-badge" id="formBadge">Arms higher!</div>
+
+      <!-- ── BOTTOM CONTROLS OVERLAY ── -->
+      <div class="overlay-bottom" id="overlayBottom">
+        <div class="overlay-bottom-inner">
+          <button class="ov-btn ov-btn-secondary" id="resetWorkoutBtn" aria-label="Reset">↺</button>
+          <button class="ov-btn ov-btn-primary" id="startStopBtn" aria-label="Start workout">▶ Start</button>
+          <button class="ov-btn ov-btn-pause" id="pauseBtn" disabled aria-label="Pause">⏸</button>
+        </div>
+      </div>
+
+      <!-- Flash -->
+      <div class="rep-flash" id="repFlash"></div>
+
+      <!-- Countdown -->
+      <div class="countdown-overlay hidden" id="countdownOverlay">
+        <div class="countdown-num" id="countdownNum">3</div>
+      </div>
+    </div>
+
+    <!-- Desktop side panel (hidden on mobile) -->
+    <div class="desktop-shell">
       <div class="side-panel">
         <div class="panel-card">
           <div class="panel-card-label">Session Time</div>
@@ -940,17 +1084,15 @@
           <div class="panel-card-value cal-value" id="calDisplay">0</div>
           <div class="panel-card-sub">kcal burned</div>
         </div>
-
         <div class="goal-progress">
           <div class="goal-progress-label">
             <span>Daily Goal</span>
-            <span id="goalFraction">0 / 50</span>
+            <span id="goalFractionDesktop">0 / 50</span>
           </div>
           <div class="progress-track">
-            <div class="progress-fill" id="goalProgressFill" style="width:0%"></div>
+            <div class="progress-fill" id="goalProgressFillDesktop" style="width:0%"></div>
           </div>
         </div>
-
         <div class="panel-card">
           <div class="panel-card-label" style="margin-bottom:8px">Phase</div>
           <div class="phase-indicator">
@@ -962,7 +1104,6 @@
             <span style="font-size:9px;color:var(--text3);letter-spacing:1px">CLOSED</span>
           </div>
         </div>
-
         <div class="panel-card" style="padding:12px 16px;display:flex;flex-direction:column;gap:8px;">
           <div class="panel-card-label">Confidence</div>
           <div class="confidence-wrap">
@@ -976,21 +1117,19 @@
             <div class="confidence-pct" id="confDetPct">—</div>
           </div>
         </div>
-
-        <!-- Leaderboard shortcut -->
         <button class="leaderboard-btn" id="showLeaderboard2" style="margin-top:auto;">🏆 Best sessions</button>
+      </div>
+      <!-- Desktop controls bar -->
+      <div class="controls-bar">
+        <button class="btn-control btn-sound" id="soundBtnDesktop" aria-label="Toggle sound" title="Sound (S)">🔇</button>
+        <button class="btn-control start-btn" id="startStopBtnDesktop" aria-label="Start workout" title="Space">▶ Start</button>
+        <button class="btn-control pause-btn" id="pauseBtnDesktop" disabled aria-label="Pause" title="P">⏸ Pause</button>
+        <button class="btn-control" id="resetWorkoutBtnDesktop" aria-label="Reset" title="R">↺ Reset</button>
+        <button class="btn-control" id="focusModeBtn" aria-label="Focus mode" title="F">⊡</button>
+        <button class="leaderboard-btn" id="showLeaderboard3">🏆</button>
       </div>
     </div>
 
-    <!-- Controls bar -->
-    <div class="controls-bar">
-      <button class="btn-control btn-sound" id="soundBtn" aria-label="Toggle sound" title="Sound (S)">🔇</button>
-      <button class="btn-control start-btn" id="startStopBtn" aria-label="Start workout" title="Space">▶ Start</button>
-      <button class="btn-control pause-btn" id="pauseBtn" disabled aria-label="Pause" title="P">⏸ Pause</button>
-      <button class="btn-control" id="resetWorkoutBtn" aria-label="Reset" title="R">↺ Reset</button>
-      <button class="btn-control" id="focusModeBtn" aria-label="Focus mode" title="F">⊡</button>
-      <button class="leaderboard-btn" id="showLeaderboard3">🏆</button>
-    </div>
   </div>
 
   <!-- SUMMARY SCREEN -->
@@ -1102,12 +1241,13 @@ const repFlash = document.getElementById('repFlash');
 const countdownOverlay = document.getElementById('countdownOverlay');
 const countdownNum = document.getElementById('countdownNum');
 
+// Desktop panel refs
 const sessionTimerEl = document.getElementById('sessionTimer');
 const rpmDisplayEl = document.getElementById('rpmDisplay');
 const paceLabelEl = document.getElementById('paceLabel');
 const calDisplayEl = document.getElementById('calDisplay');
-const goalFractionEl = document.getElementById('goalFraction');
-const goalProgressFillEl = document.getElementById('goalProgressFill');
+const goalFractionDesktop = document.getElementById('goalFractionDesktop');
+const goalProgressFillDesktop = document.getElementById('goalProgressFillDesktop');
 const phaseDotOpen = document.getElementById('phaseDotOpen');
 const phaseDotClosed = document.getElementById('phaseDotClosed');
 const confPose = document.getElementById('confPose');
@@ -1115,14 +1255,24 @@ const confDet = document.getElementById('confDet');
 const confPosePct = document.getElementById('confPosePct');
 const confDetPct = document.getElementById('confDetPct');
 
+// Mobile overlay refs
 const mobileTimer = document.getElementById('mobileTimer');
 const mobileRpm = document.getElementById('mobileRpm');
 const mobileCal = document.getElementById('mobileCal');
+const goalProgressFillEl = document.getElementById('goalProgressFill');
+const goalFractionEl = document.getElementById('goalFraction');
 
+// Mobile overlay buttons
 const startStopBtn = document.getElementById('startStopBtn');
 const pauseBtn = document.getElementById('pauseBtn');
 const resetWorkoutBtn = document.getElementById('resetWorkoutBtn');
 const soundBtn = document.getElementById('soundBtn');
+
+// Desktop buttons
+const startStopBtnD = document.getElementById('startStopBtnDesktop');
+const pauseBtnD = document.getElementById('pauseBtnDesktop');
+const resetWorkoutBtnD = document.getElementById('resetWorkoutBtnDesktop');
+const soundBtnD = document.getElementById('soundBtnDesktop');
 const focusModeBtn = document.getElementById('focusModeBtn');
 
 const milestoneToast = document.getElementById('milestoneToast');
@@ -1136,6 +1286,24 @@ const copyStatsBtn = document.getElementById('copyStatsBtn');
 const homeBtn = document.getElementById('homeBtn');
 const retryBtn = document.getElementById('retryBtn');
 const confettiCanvas = document.getElementById('confetti-canvas');
+
+// Helper: sync both button sets
+function syncButtons() {
+  const running = sessionRunning;
+  const paused = sessionPaused;
+  const startLabel = running ? '■ Stop' : '▶ Start';
+  const startBg = running ? 'linear-gradient(135deg,#ff4b6e,#ff6b3d)' : '';
+  const pauseLabel = paused ? '▶' : '⏸';
+  const pauseLabelD = paused ? '▶ Resume' : '⏸ Pause';
+
+  startStopBtn.textContent = startLabel;
+  startStopBtn.style.background = startBg;
+  if (startStopBtnD) { startStopBtnD.textContent = running ? '■ Stop' : '▶ Start'; startStopBtnD.style.background = startBg; }
+
+  pauseBtn.textContent = pauseLabel;
+  pauseBtn.disabled = !running;
+  if (pauseBtnD) { pauseBtnD.textContent = pauseLabelD; pauseBtnD.disabled = !running; }
+}
 
 // ──────────── State ────────────
 let poseLandmarker = null;
@@ -1370,7 +1538,7 @@ function getElapsed() {
 function updateTimerDisplay() {
   const elapsed = getElapsed();
   const fmt = formatTime(elapsed);
-  sessionTimerEl.textContent = fmt;
+  if (sessionTimerEl) sessionTimerEl.textContent = fmt;
   mobileTimer.textContent = fmt;
 }
 
@@ -1383,23 +1551,26 @@ function calcRPM() {
 }
 
 function updateStats() {
-  const elapsed = getElapsed();
   const rpm = calcRPM();
   const rpmStr = rpm ? String(rpm) : '—';
   const cal = Math.round(repCount * CALORIE_RATE);
+  const pct = Math.min((repCount / dailyGoal) * 100, 100);
+  const fraction = `${repCount} / ${dailyGoal}`;
 
-  rpmDisplayEl.textContent = rpmStr;
+  // Mobile overlay
   mobileRpm.textContent = rpmStr;
-  if (rpm) {
+  mobileCal.textContent = cal;
+  goalProgressFillEl.style.width = pct + '%';
+  goalFractionEl.textContent = fraction;
+
+  // Desktop panel
+  if (rpmDisplayEl) rpmDisplayEl.textContent = rpmStr;
+  if (calDisplayEl) calDisplayEl.textContent = cal;
+  if (goalProgressFillDesktop) goalProgressFillDesktop.style.width = pct + '%';
+  if (goalFractionDesktop) goalFractionDesktop.textContent = fraction;
+  if (rpm && paceLabelEl) {
     paceLabelEl.textContent = rpm >= 40 ? 'Excellent pace!' : rpm >= 25 ? 'Good pace' : 'Steady pace';
   }
-  calDisplayEl.textContent = cal;
-  mobileCal.textContent = cal;
-
-  // Goal progress
-  const pct = Math.min((repCount / dailyGoal) * 100, 100);
-  goalProgressFillEl.style.width = pct + '%';
-  goalFractionEl.textContent = `${repCount} / ${dailyGoal}`;
 }
 
 // ──────────── Inactivity detection ────────────
@@ -1600,18 +1771,18 @@ async function doCountdown() {
 async function startSession() {
   resetSession(false);
   showScreen('screen-workout');
-  startStopBtn.textContent = '■ Stop';
-  startStopBtn.style.background = 'linear-gradient(135deg, #ff4b6e, #ff6b3d)';
-  pauseBtn.disabled = false;
+  sessionRunning = true;
+  syncButtons();
 
   try {
     await startCamera();
     await doCountdown();
-    sessionRunning = true;
     sessionStartTime = performance.now();
     sessionDurationMs = 0;
     resetInactivityTimer();
   } catch (e) {
+    sessionRunning = false;
+    syncButtons();
     stopCamera();
     document.getElementById('errorMsg').textContent = `${e?.message || e}\n\nTips:\n• Use HTTPS or localhost\n• Allow camera permission\n• Close other camera apps\n• Improve lighting`;
     showScreen('screen-error');
@@ -1623,7 +1794,7 @@ function pauseSession() {
   sessionPaused = true;
   sessionDurationMs += performance.now() - sessionStartTime;
   pauseStartTime = performance.now();
-  pauseBtn.textContent = '▶ Resume';
+  syncButtons();
   if (inactivityPauseTimer) clearTimeout(inactivityPauseTimer);
   showMilestone('⏸ Session paused');
 }
@@ -1632,7 +1803,7 @@ function resumeSession() {
   if (!sessionPaused) return;
   sessionPaused = false;
   sessionStartTime = performance.now();
-  pauseBtn.textContent = '⏸ Pause';
+  syncButtons();
   resetInactivityTimer();
 }
 
@@ -1658,21 +1829,22 @@ function resetSession(full = true) {
 
   repCountEl.textContent = '0';
   updateRing(0);
-  sessionTimerEl.textContent = '0:00';
   mobileTimer.textContent = '0:00';
-  rpmDisplayEl.textContent = '—'; mobileRpm.textContent = '—';
-  calDisplayEl.textContent = '0'; mobileCal.textContent = '0';
+  mobileRpm.textContent = '—';
+  mobileCal.textContent = '0';
   goalProgressFillEl.style.width = '0%';
   goalFractionEl.textContent = `0 / ${dailyGoal}`;
-  phaseDotOpen.className = 'phase-dot';
-  phaseDotClosed.className = 'phase-dot';
-  confPose.style.width = '0%'; confDet.style.width = '0%';
-  confPosePct.textContent = '—'; confDetPct.textContent = '—';
+  if (sessionTimerEl) sessionTimerEl.textContent = '0:00';
+  if (rpmDisplayEl) rpmDisplayEl.textContent = '—';
+  if (calDisplayEl) calDisplayEl.textContent = '0';
+  if (goalProgressFillDesktop) goalProgressFillDesktop.style.width = '0%';
+  if (goalFractionDesktop) goalFractionDesktop.textContent = `0 / ${dailyGoal}`;
+  if (phaseDotOpen) phaseDotOpen.className = 'phase-dot';
+  if (phaseDotClosed) phaseDotClosed.className = 'phase-dot';
+  if (confPose) { confPose.style.width = '0%'; confPosePct.textContent = '—'; }
+  if (confDet) { confDet.style.width = '0%'; confDetPct.textContent = '—'; }
   silhouetteGuide.classList.remove('hidden');
-  pauseBtn.disabled = true;
-  pauseBtn.textContent = '⏸ Pause';
-  startStopBtn.textContent = '▶ Start';
-  startStopBtn.style.background = '';
+  syncButtons();
 }
 
 // ──────────── Summary ────────────
@@ -1818,30 +1990,27 @@ dailyGoalInput.addEventListener('change', () => {
   setStorage('justify_goal', dailyGoal);
 });
 
-startStopBtn.addEventListener('click', () => {
-  if (sessionRunning) stopSession();
-  else startSession();
-});
+// Mobile overlay buttons
+startStopBtn.addEventListener('click', () => { if (sessionRunning) stopSession(); else startSession(); });
+pauseBtn.addEventListener('click', () => { if (sessionPaused) resumeSession(); else pauseSession(); });
+resetWorkoutBtn.addEventListener('click', () => { if (sessionRunning) stopCamera(); sessionRunning = false; sessionPaused = false; resetSession(); });
 
-pauseBtn.addEventListener('click', () => {
-  if (sessionPaused) resumeSession();
-  else pauseSession();
-});
+// Desktop buttons (mirror mobile)
+startStopBtnD?.addEventListener('click', () => { if (sessionRunning) stopSession(); else startSession(); });
+pauseBtnD?.addEventListener('click', () => { if (sessionPaused) resumeSession(); else pauseSession(); });
+resetWorkoutBtnD?.addEventListener('click', () => { if (sessionRunning) stopCamera(); sessionRunning = false; sessionPaused = false; resetSession(); });
 
-resetWorkoutBtn.addEventListener('click', () => {
-  if (sessionRunning) stopCamera();
-  sessionRunning = false; sessionPaused = false;
-  resetSession();
-  startStopBtn.textContent = '▶ Start';
-  startStopBtn.style.background = '';
-});
-
-soundBtn.addEventListener('click', () => {
+// Sound (mobile + desktop)
+function toggleSound() {
   soundEnabled = !soundEnabled;
-  soundBtn.textContent = soundEnabled ? '🔊' : '🔇';
+  const icon = soundEnabled ? '🔊' : '🔇';
+  soundBtn.textContent = icon;
   soundBtn.classList.toggle('active', soundEnabled);
+  if (soundBtnD) { soundBtnD.textContent = icon; soundBtnD.classList.toggle('active', soundEnabled); }
   if (soundEnabled) { getAudioCtx(); playTick(440, 0.1); }
-});
+}
+soundBtn.addEventListener('click', toggleSound);
+soundBtnD?.addEventListener('click', toggleSound);
 
 skeletonToggle.addEventListener('click', () => {
   showSkeleton = !showSkeleton;
@@ -1849,21 +2018,21 @@ skeletonToggle.addEventListener('click', () => {
   if (!showSkeleton) clearCanvas();
 });
 
-focusModeBtn.addEventListener('click', () => {
+focusModeBtn?.addEventListener('click', () => {
   isFocusMode = !isFocusMode;
   document.body.classList.toggle('focus-mode', isFocusMode);
   focusModeBtn.style.color = isFocusMode ? 'var(--accent)' : '';
 });
 
 doAgainBtn.addEventListener('click', () => { resetSession(); startSession(); });
-homeBtn.addEventListener('click', () => { resetSession(); showScreen('screen-welcome'); const streak = loadStreak(); streakNum.textContent = streak; });
+homeBtn.addEventListener('click', () => { resetSession(); showScreen('screen-welcome'); streakNum.textContent = loadStreak(); });
 shareBtn.addEventListener('click', shareResults);
 copyStatsBtn.addEventListener('click', copyStats);
 retryBtn.addEventListener('click', () => { showScreen('screen-welcome'); });
 
 // Leaderboard
-[document.getElementById('showLeaderboard'), document.getElementById('showLeaderboard2'), document.getElementById('showLeaderboard3')].forEach(el => {
-  el?.addEventListener('click', () => { renderLeaderboard(); leaderboardPopup.classList.add('show'); });
+['showLeaderboard','showLeaderboard2','showLeaderboard3'].forEach(id => {
+  document.getElementById(id)?.addEventListener('click', () => { renderLeaderboard(); leaderboardPopup.classList.add('show'); });
 });
 lbClose.addEventListener('click', () => leaderboardPopup.classList.remove('show'));
 leaderboardPopup.addEventListener('click', e => { if (e.target === leaderboardPopup) leaderboardPopup.classList.remove('show'); });
@@ -1872,15 +2041,14 @@ leaderboardPopup.addEventListener('click', e => { if (e.target === leaderboardPo
 document.addEventListener('keydown', e => {
   if (document.activeElement.tagName === 'INPUT') return;
   switch (e.code) {
-    case 'Space': e.preventDefault(); startStopBtn.click(); break;
-    case 'KeyP': pauseBtn.click(); break;
-    case 'KeyR': resetWorkoutBtn.click(); break;
-    case 'KeyS': soundBtn.click(); break;
-    case 'KeyF': focusModeBtn.click(); break;
+    case 'Space': e.preventDefault(); if (sessionRunning) stopSession(); else startSession(); break;
+    case 'KeyP': if (sessionPaused) resumeSession(); else pauseSession(); break;
+    case 'KeyR': if (sessionRunning) stopCamera(); sessionRunning = false; sessionPaused = false; resetSession(); break;
+    case 'KeyS': toggleSound(); break;
+    case 'KeyF': focusModeBtn?.click(); break;
   }
 });
 
-// Visibility change
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && sessionRunning && !sessionPaused) pauseSession();
 });
