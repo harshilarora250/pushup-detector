@@ -4,1010 +4,672 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="theme-color" content="#080c14"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <title>Justify — Earn Your Screen Time</title>
   <link rel="icon" type="image/x-icon" href="favicon.ico"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet"/>
   <style>
-    /* ─────────── Reset & Base ─────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     :root {
-      --bg: #080c14;
-      --bg2: #0e1421;
-      --surface: rgba(14,20,35,0.82);
-      --surface2: rgba(255,255,255,0.05);
-      --border: rgba(255,255,255,0.09);
-      --border-accent: rgba(0,230,130,0.35);
-      --accent: #00e682;
-      --accent2: #00b5ff;
-      --accent3: #ff6b3d;
-      --text: #e8f0fc;
-      --text2: #7a8ba8;
-      --text3: #4a5a72;
-      --red: #ff4b6e;
-      --gold: #ffd166;
-      --radius: 18px;
-      --radius-sm: 10px;
-      --font-display: 'Barlow Condensed', sans-serif;
-      --font-body: 'Barlow', sans-serif;
-      --transition: 0.22s cubic-bezier(0.4,0,0.2,1);
+      --bg:      #080c14;
+      --bg2:     #0d1320;
+      --surface: rgba(14,22,40,0.86);
+      --surf2:   rgba(255,255,255,0.05);
+      --border:  rgba(255,255,255,0.08);
+      --acc:     #00e682;
+      --acc2:    #00b5ff;
+      --acc3:    #ff6b3d;
+      --gold:    #ffd166;
+      --red:     #ff4b6e;
+      --txt:     #e8f0fc;
+      --txt2:    #7a8ba8;
+      --txt3:    #3d4f68;
+      --r:       16px;
+      --rs:      10px;
+      --ease:    cubic-bezier(0.4,0,0.2,1);
       color-scheme: dark;
     }
+
     html, body {
       height: 100%; overflow: hidden;
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font-body);
+      background: var(--bg); color: var(--txt);
+      font-family: 'Barlow', sans-serif;
       -webkit-font-smoothing: antialiased;
       touch-action: manipulation;
       user-select: none;
     }
 
-    /* ─────────── Noise grain ─────────── */
-    body::before {
-      content: '';
-      position: fixed; inset: 0; z-index: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-      background-size: 200px;
-      pointer-events: none;
-      opacity: 0.6;
+    /* ── Loading overlay ── */
+    #loading {
+      position: fixed; inset: 0; z-index: 300;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 20px;
+      transition: opacity 0.5s ease;
     }
-
-    /* ─────────── Layout ─────────── */
-    .app {
-      position: fixed; inset: 0; z-index: 1;
-      display: grid;
-      grid-template-rows: 1fr;
+    #loading.out { opacity: 0; pointer-events: none; }
+    .ld-logo {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 60px; font-weight: 900; letter-spacing: -1px;
+      background: linear-gradient(135deg,#00e682,#00b5ff);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     }
+    .ld-track { width: 180px; height: 3px; background: var(--surf2); border-radius: 99px; overflow: hidden; }
+    .ld-bar   { height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg,#00e682,#00b5ff); transition: width 0.4s var(--ease); }
+    .ld-lbl   { font-size: 11px; color: var(--txt3); letter-spacing: 2.5px; text-transform: uppercase; }
 
-    /* ─────────── Screens ─────────── */
+    /* ── App shell ── */
+    .app { position: fixed; inset: 0; z-index: 1; }
     .screen {
       position: absolute; inset: 0;
       display: flex; flex-direction: column;
       opacity: 0; pointer-events: none;
-      transition: opacity 0.4s ease;
-      height: 100%;
+      transition: opacity 0.35s ease;
     }
     .screen.active { opacity: 1; pointer-events: auto; }
 
-    /* ─────────── WELCOME SCREEN ─────────── */
-    #screen-welcome {
-      align-items: center; justify-content: center;
-      gap: 0;
-      padding: 24px;
-      background: radial-gradient(ellipse 70% 60% at 50% 100%, rgba(0,230,130,0.08) 0%, transparent 70%),
-                  radial-gradient(ellipse 50% 40% at 80% 20%, rgba(0,181,255,0.06) 0%, transparent 60%),
-                  var(--bg);
-    }
-    .welcome-logo {
-      font-family: var(--font-display);
-      font-size: clamp(72px, 18vw, 120px);
-      font-weight: 900;
-      letter-spacing: -2px;
-      line-height: 0.9;
-      background: linear-gradient(135deg, #00e682 0%, #00b5ff 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 8px;
-      animation: fadeSlideUp 0.7s ease both;
-    }
-    .welcome-tagline {
-      font-family: var(--font-display);
-      font-size: clamp(14px,3vw,18px);
-      font-weight: 400;
-      color: var(--text2);
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      margin-bottom: 48px;
-      animation: fadeSlideUp 0.7s 0.1s ease both;
-    }
-    .welcome-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 28px;
-      width: min(100%, 380px);
-      backdrop-filter: blur(20px);
-      animation: fadeSlideUp 0.7s 0.2s ease both;
-    }
-    .goal-row {
-      display: flex; align-items: center; gap: 12px;
-      margin-bottom: 20px;
-    }
-    .goal-row label {
-      font-size: 13px; color: var(--text2);
-      letter-spacing: 0.5px; flex-shrink: 0;
-    }
-    .goal-input {
-      flex: 1; background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--text);
-      font-family: var(--font-display);
-      font-size: 22px; font-weight: 700;
-      padding: 8px 12px;
-      text-align: center;
-      outline: none;
-      transition: border-color var(--transition);
-    }
-    .goal-input:focus { border-color: var(--accent); }
-    .streak-display {
-      display: flex; align-items: center; gap: 8px;
-      padding: 10px 14px;
-      background: rgba(255,209,102,0.08);
-      border: 1px solid rgba(255,209,102,0.2);
-      border-radius: var(--radius-sm);
-      margin-bottom: 20px;
-      font-size: 13px;
-      color: var(--gold);
-    }
-    .streak-display .streak-num {
-      font-family: var(--font-display);
-      font-size: 20px; font-weight: 700;
-    }
-    .btn-primary {
-      width: 100%;
-      padding: 16px;
-      background: linear-gradient(135deg, #00e682, #00b5ff);
-      border: none; border-radius: var(--radius-sm);
-      color: #080c14;
-      font-family: var(--font-display);
-      font-size: 18px; font-weight: 800;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 30px rgba(0,230,130,0.3); }
-    .btn-primary:active { transform: translateY(0); }
-
-    /* ─────────── WORKOUT SCREEN ─────────── */
-    #screen-workout {
-      flex-direction: row;
-      background: var(--bg);
-    }
-
-    /* Camera always fills its container */
-    .camera-area {
-      position: relative;
-      flex: 1;
-      background: #000;
-      overflow: hidden;
-      min-width: 0;
-      min-height: 0;
-    }
-
-    /* Desktop shell: camera left, sidebar+controls right */
-    .desktop-shell {
-      width: 280px;
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
-      border-left: 1px solid var(--border);
-      background: var(--bg2);
-    }
-
-    /* ── OVERLAY ELEMENTS (always on top of camera) ── */
-
-    /* Top bar: skeleton | stats | sound */
-    .overlay-top {
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      z-index: 6;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding: 12px 12px 8px;
-      background: linear-gradient(to bottom, rgba(8,12,20,0.7) 0%, transparent 100%);
-    }
-    .top-stats {
-      display: flex; gap: 6px;
-    }
-    .top-stat {
-      display: flex; flex-direction: column; align-items: center;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 5px 10px;
-      backdrop-filter: blur(12px);
-      min-width: 52px;
-    }
-    .top-stat-val {
-      font-family: var(--font-display);
-      font-size: 16px; font-weight: 700; line-height: 1;
-    }
-    .top-stat-lbl {
-      font-size: 8px; color: var(--text3);
-      letter-spacing: 1.5px; text-transform: uppercase;
-      margin-top: 2px;
-    }
-    .top-right {
-      display: flex; align-items: center; gap: 6px;
-    }
-    .icon-btn {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-size: 14px;
-      padding: 6px 8px;
-      cursor: pointer;
-      backdrop-filter: blur(12px);
-      transition: all var(--transition);
-      line-height: 1;
-    }
-    .icon-btn:hover { border-color: rgba(255,255,255,0.2); }
-    .icon-btn.active { color: var(--accent2); border-color: rgba(0,181,255,0.3); }
-
-    /* Goal progress bar under top bar */
-    .overlay-goal {
-      position: absolute;
-      top: 60px; left: 12px; right: 12px;
-      z-index: 6;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .overlay-goal-track {
-      flex: 1; height: 3px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 99px; overflow: hidden;
-    }
-    .overlay-goal-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #00e682, #00b5ff);
-      border-radius: 99px;
-      transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
-    }
-    .overlay-goal-label {
-      font-size: 10px; font-weight: 600;
-      color: var(--text2); letter-spacing: 0.5px;
+    /* ── Toast ── */
+    .toast {
+      position: fixed; top: 20px; left: 50%;
+      transform: translateX(-50%) translateY(-80px);
+      z-index: 200; padding: 10px 22px; border-radius: 99px;
+      background: var(--surface); border: 1px solid rgba(0,230,130,0.3);
+      backdrop-filter: blur(20px); color: var(--acc);
+      font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 700;
+      box-shadow: 0 8px 32px rgba(0,230,130,0.15);
+      opacity: 0; pointer-events: none;
+      transition: transform 0.42s cubic-bezier(0.34,1.56,0.64,1), opacity 0.28s ease;
       white-space: nowrap;
     }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
-    /* Rep counter: centred in camera */
-    .rep-overlay {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      z-index: 5;
-      text-align: center;
+    /* ── Confetti canvas ── */
+    #confetti-c { position: fixed; inset: 0; z-index: 150; pointer-events: none; }
+
+    /* ── Leaderboard popup ── */
+    .lb-popup {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(8,12,20,0.8); backdrop-filter: blur(14px);
+      display: flex; align-items: center; justify-content: center; padding: 24px;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    }
+    .lb-popup.show { opacity: 1; pointer-events: auto; }
+    .lb-inner {
+      width: min(100%,380px);
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--r); overflow: hidden;
+    }
+    .lb-head {
+      padding: 16px 18px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      font-family: 'Barlow Condensed', sans-serif; font-size: 17px; font-weight: 700;
+    }
+    .lb-x { background: none; border: none; color: var(--txt2); cursor: pointer; font-size: 18px; padding: 2px 6px; }
+    .lb-list { padding: 10px; max-height: 340px; overflow-y: auto; }
+    .lb-row  { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; }
+    .lb-row:nth-child(1) { background: rgba(255,209,102,0.07); }
+    .lb-row:nth-child(2) { background: rgba(200,200,200,0.04); }
+    .lb-row:nth-child(3) { background: rgba(255,107,61,0.04);  }
+    .lb-rank { font-family: 'Barlow Condensed', sans-serif; font-size: 17px; font-weight: 700; color: var(--txt3); width: 22px; }
+    .lb-info { flex: 1; }
+    .lb-reps { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 700; }
+    .lb-meta { font-size: 11px; color: var(--txt3); }
+
+    /* ════════════════════════════════
+       WELCOME SCREEN
+    ════════════════════════════════ */
+    #screen-welcome {
+      align-items: center; justify-content: center;
+      padding: 28px 24px;
+      overflow-y: auto;
+      background:
+        radial-gradient(ellipse 70% 55% at 50% 110%, rgba(0,230,130,0.09) 0%, transparent 65%),
+        radial-gradient(ellipse 50% 40% at 85% 10%,  rgba(0,181,255,0.07) 0%, transparent 60%),
+        var(--bg);
+    }
+    .w-logo {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: clamp(68px,18vw,110px); font-weight: 900;
+      letter-spacing: -2px; line-height: 0.88;
+      background: linear-gradient(135deg,#00e682,#00b5ff);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: 8px; animation: up .6s ease both;
+    }
+    .w-tag {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: clamp(12px,3vw,16px); font-weight: 400;
+      color: var(--txt2); letter-spacing: 4px; text-transform: uppercase;
+      margin-bottom: 36px; animation: up .6s .07s ease both;
+    }
+    .w-card {
+      width: min(100%, 360px);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 22px;
+      backdrop-filter: blur(22px);
+      display: flex; flex-direction: column; gap: 13px;
+      animation: up .6s .14s ease both;
     }
 
-    /* Bottom controls overlay */
-    .overlay-bottom {
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      z-index: 6;
-      background: linear-gradient(to top, rgba(8,12,20,0.85) 0%, transparent 100%);
-      padding: 20px 20px 16px;
+    /* Auth section */
+    .auth-sign-in {
+      width: 100%; padding: 12px 16px;
+      background: var(--surf2); border: 1px solid var(--border);
+      border-radius: var(--rs); color: var(--txt);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 15px; font-weight: 700; letter-spacing: 0.4px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+      transition: background .2s, border-color .2s;
     }
-    .overlay-bottom-inner {
-      display: flex; align-items: center; justify-content: center; gap: 12px;
+    .auth-sign-in:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.18); }
+
+    .auth-info {
+      display: none; align-items: center; justify-content: space-between;
+      padding: 9px 12px;
+      background: rgba(0,230,130,0.07); border: 1px solid rgba(0,230,130,0.18);
+      border-radius: var(--rs);
     }
-    .ov-btn {
-      border-radius: 14px;
-      font-family: var(--font-display);
-      font-weight: 700;
-      cursor: pointer;
-      border: 1px solid var(--border);
-      transition: all var(--transition);
-      backdrop-filter: blur(12px);
+    .auth-info.visible { display: flex; }
+    .auth-email { font-size: 12px; color: var(--txt2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 210px; }
+    .auth-out   { background: none; border: none; color: var(--txt3); font-size: 12px; cursor: pointer; flex-shrink: 0; padding-left: 8px; transition: color .2s; }
+    .auth-out:hover { color: var(--txt2); }
+
+    /* Goal row */
+    .goal-row { display: flex; align-items: center; gap: 10px; }
+    .goal-row label { font-size: 13px; color: var(--txt2); flex-shrink: 0; }
+    .goal-input {
+      flex: 1; background: var(--surf2); border: 1px solid var(--border);
+      border-radius: var(--rs); color: var(--txt);
+      font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700;
+      padding: 8px 12px; text-align: center; outline: none; transition: border-color .2s;
     }
-    .ov-btn:disabled { opacity: 0.35; pointer-events: none; }
-    .ov-btn-primary {
-      background: linear-gradient(135deg, #00e682, #00b5ff);
-      border-color: transparent;
-      color: #080c14;
-      font-size: 18px;
-      padding: 16px 40px;
-      letter-spacing: 0.5px;
+    .goal-input:focus { border-color: var(--acc); }
+
+    /* Streak */
+    .streak-pill {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px;
+      background: rgba(255,209,102,0.07); border: 1px solid rgba(255,209,102,0.18);
+      border-radius: var(--rs); color: var(--gold);
     }
-    .ov-btn-primary:hover { box-shadow: 0 6px 28px rgba(0,230,130,0.4); transform: translateY(-1px); }
-    .ov-btn-primary:active { transform: translateY(0); }
-    .ov-btn-secondary {
-      background: var(--surface);
-      color: var(--text2);
-      font-size: 20px;
-      width: 52px; height: 52px;
-      display: flex; align-items: center; justify-content: center;
-      padding: 0;
+    .streak-pill .sn { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; }
+    .streak-pill span { font-size: 12px; color: var(--txt2); }
+
+    /* Primary button */
+    .btn-primary {
+      width: 100%; padding: 15px;
+      background: linear-gradient(135deg,#00e682,#00b5ff);
+      border: none; border-radius: var(--rs); color: #080c14;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 17px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+      cursor: pointer; transition: transform .15s, box-shadow .15s;
     }
-    .ov-btn-secondary:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
-    .ov-btn-pause {
-      background: rgba(255,209,102,0.12);
-      border-color: rgba(255,209,102,0.25);
-      color: var(--gold);
-      font-size: 20px;
-      width: 52px; height: 52px;
-      display: flex; align-items: center; justify-content: center;
-      padding: 0;
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(0,230,130,0.3); }
+    .btn-primary:active { transform: none; }
+
+    .w-footer { margin-top: 14px; animation: up .6s .21s ease both; }
+    .ghost-btn {
+      background: none; border: none; color: var(--txt3);
+      font-size: 12px; cursor: pointer; padding: 6px 10px;
+      display: flex; align-items: center; gap: 6px;
+      transition: color .2s;
     }
-    .ov-btn-pause:hover { background: rgba(255,209,102,0.2); }
+    .ghost-btn:hover { color: var(--txt2); }
 
-    /* ── MOBILE: camera is truly full screen ── */
-    @media (max-width: 700px) {
-      #screen-workout { flex-direction: column; }
-      .camera-area { flex: 1; width: 100%; }
-      .desktop-shell { display: none; }
+    /* ════════════════════════════════
+       WORKOUT SCREEN
+    ════════════════════════════════ */
+    #screen-workout { flex-direction: row; background: #000; }
 
-      /* Safe area top for notch */
-      .overlay-top {
-        padding-top: max(12px, env(safe-area-inset-top) + 8px);
-      }
-      .overlay-goal {
-        top: max(68px, env(safe-area-inset-top) + 60px);
-      }
-
-      /* Bigger rep counter on mobile */
-      .rep-ring-wrap { width: 160px; height: 160px; }
-      .rep-count { font-size: 64px; }
-
-      /* Bottom safe area for home bar */
-      .overlay-bottom {
-        padding-bottom: max(20px, env(safe-area-inset-bottom) + 16px);
-      }
-
-      /* Bigger touch targets */
-      .ov-btn-primary { font-size: 20px; padding: 18px 48px; }
-      .ov-btn-secondary, .ov-btn-pause { width: 60px; height: 60px; font-size: 22px; }
-
-      /* Form badge below goal bar */
-      .form-badge { top: max(80px, env(safe-area-inset-top) + 72px); }
-
-      /* Lighting warn inside top-right */
-      .lighting-warn { position: static; opacity: 0; transition: opacity 0.3s ease; }
-      .lighting-warn.show { opacity: 1; }
-
-      /* Milestone toast safe area */
-      .milestone-toast {
-        top: max(16px, env(safe-area-inset-top) + 8px);
-        max-width: calc(100vw - 32px);
-        white-space: normal; text-align: center;
-      }
-
-      /* Leaderboard as bottom sheet */
-      .leaderboard-popup { align-items: flex-end; padding: 0; }
-      .leaderboard-inner {
-        width: 100%;
-        border-radius: var(--radius) var(--radius) 0 0;
-        border-bottom: none;
-        padding-bottom: max(16px, env(safe-area-inset-bottom));
-      }
-      .lb-list { max-height: 50vh; }
-
-      /* Summary scrollable */
-      #screen-summary {
-        overflow-y: auto;
-        align-items: flex-start; justify-content: flex-start;
-        padding: 16px;
-        padding-top: max(24px, env(safe-area-inset-top) + 16px);
-        padding-bottom: max(24px, env(safe-area-inset-bottom) + 16px);
-      }
-      .summary-card { width: 100%; border-radius: var(--radius-sm); }
+    /* Camera fills available space */
+    .cam-area {
+      flex: 1; position: relative;
+      background: #000; overflow: hidden; min-width: 0;
     }
-
-    @media (max-width: 380px) {
-      .rep-ring-wrap { width: 140px; height: 140px; }
-      .rep-count { font-size: 54px; }
-      .ov-btn-primary { font-size: 17px; padding: 15px 36px; }
+    #vid {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; transform: scaleX(-1);
+      opacity: 0; transition: opacity .7s ease;
     }
-
-    /* Camera area */
-    .camera-area {
-      position: relative;
-      background: #000;
-      overflow: hidden;
-      min-height: 0;
+    #vid.on { opacity: 1; }
+    #pose-cv {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      transform: scaleX(-1); pointer-events: none; z-index: 2;
     }
-    #video {
-      position: absolute; inset: 0;
-      width: 100%; height: 100%;
-      object-fit: cover;
-      transform: scaleX(-1);
-      opacity: 0;
-      transition: opacity 0.8s ease;
-    }
-    #video.ready { opacity: 1; }
-    #overlay {
-      position: absolute; inset: 0;
-      width: 100%; height: 100%;
-      transform: scaleX(-1);
-      pointer-events: none;
-      z-index: 2;
-    }
-    .camera-vignette {
-      position: absolute; inset: 0; z-index: 3;
-      background: radial-gradient(ellipse 85% 85% at 50% 50%, transparent 55%, rgba(8,12,20,0.7) 100%);
-      pointer-events: none;
+    .vignette {
+      position: absolute; inset: 0; z-index: 3; pointer-events: none;
+      background: radial-gradient(ellipse 86% 86% at 50% 50%, transparent 50%, rgba(8,12,20,0.75) 100%);
     }
 
     /* Silhouette guide */
-    .silhouette-guide {
-      position: absolute; inset: 0; z-index: 3;
+    .silhouette {
+      position: absolute; inset: 0; z-index: 3; pointer-events: none;
       display: flex; align-items: center; justify-content: center;
-      pointer-events: none;
-      opacity: 0.18;
-      transition: opacity 0.5s ease;
+      transition: opacity .5s ease;
     }
-    .silhouette-guide.hidden { opacity: 0; }
-    .silhouette-guide svg { height: 75%; width: auto; }
+    .silhouette svg { height: 70%; width: auto; opacity: .16; }
+    .silhouette.hide { opacity: 0; }
 
-    /* Rep counter overlay */
-    .rep-overlay {
-      position: absolute;
-      bottom: 20px; left: 50%;
-      transform: translateX(-50%);
-      z-index: 5;
-      text-align: center;
+    /* ── Top overlay bar ── */
+    .ov-top {
+      position: absolute; top: 0; left: 0; right: 0; z-index: 6;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 12px 12px 10px;
+      background: linear-gradient(to bottom, rgba(8,12,20,0.75), transparent);
     }
-    .rep-ring-wrap {
-      position: relative;
-      width: 130px; height: 130px;
-      margin: 0 auto 8px;
-    }
-    .rep-ring-svg {
-      position: absolute; inset: 0;
-      width: 100%; height: 100%;
-      transform: rotate(-90deg);
-    }
-    .rep-ring-bg { fill: none; stroke: rgba(255,255,255,0.07); }
-    .rep-ring-fg {
-      fill: none;
-      stroke: url(#ringGrad);
-      stroke-linecap: round;
-      transition: stroke-dashoffset 0.6s cubic-bezier(0.4,0,0.2,1);
-    }
-    .rep-number {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      flex-direction: column;
-    }
-    .rep-count {
-      font-family: var(--font-display);
-      font-size: 52px; font-weight: 900;
-      line-height: 1;
-      color: #fff;
-      transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1);
-      will-change: transform;
-    }
-    .rep-count.bump { transform: scale(1.22); }
-    .rep-label {
-      font-size: 10px; font-weight: 600;
-      color: var(--text2); letter-spacing: 2px;
-      text-transform: uppercase;
-    }
-
-    /* Visual flash */
-    .rep-flash {
-      position: absolute; inset: 0; z-index: 4;
-      background: rgba(0,230,130,0.12);
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.05s ease;
-    }
-    .rep-flash.show { opacity: 1; }
-
-    /* Form feedback badge */
-    .form-badge {
-      position: absolute; top: 82px; left: 50%; transform: translateX(-50%);
-      z-index: 5;
-      padding: 6px 14px;
-      border-radius: 99px;
-      font-size: 12px; font-weight: 600;
-      letter-spacing: 0.5px;
-      opacity: 0;
-      transition: opacity 0.3s ease, transform 0.3s ease;
-      white-space: nowrap;
-    }
-    .form-badge.visible { opacity: 1; }
-    .form-badge.good { background: rgba(0,230,130,0.2); border: 1px solid rgba(0,230,130,0.4); color: #00e682; }
-    .form-badge.warn { background: rgba(255,107,61,0.2); border: 1px solid rgba(255,107,61,0.4); color: #ff6b3d; }
-
-    /* Lighting warn */
-    .lighting-warn {
-      padding: 5px 8px;
-      border-radius: 8px;
-      background: rgba(255,209,102,0.15);
-      border: 1px solid rgba(255,209,102,0.3);
-      color: var(--gold);
-      font-size: 11px; font-weight: 600;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-      white-space: nowrap;
-    }
-    .lighting-warn.show { opacity: 1; }
 
     /* Skeleton toggle */
-    .skeleton-toggle {
-      z-index: 6;
-      padding: 7px 10px;
-      border-radius: var(--radius-sm);
-      background: var(--surface);
-      border: 1px solid var(--border);
-      backdrop-filter: blur(10px);
-      color: var(--text2);
-      font-size: 11px; font-weight: 600;
-      cursor: pointer;
+    .skel-btn {
       display: flex; align-items: center; gap: 5px;
-      transition: all var(--transition);
-      flex-shrink: 0;
-      white-space: nowrap;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--txt2);
+      font-size: 11px; font-weight: 600; white-space: nowrap;
+      padding: 7px 10px; cursor: pointer;
+      backdrop-filter: blur(14px); transition: all .2s; flex-shrink: 0;
     }
-    .skeleton-toggle:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
-    .skeleton-toggle .dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: var(--text3);
-      transition: background var(--transition);
-    }
-    .skeleton-toggle.active .dot { background: var(--accent); }
-    .skeleton-toggle.active { color: var(--text); }
+    .skel-btn .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--txt3); transition: background .2s; }
+    .skel-btn.on { color: var(--txt); }
+    .skel-btn.on .dot { background: var(--acc); }
 
-    /* Countdown overlay */
-    .countdown-overlay {
-      position: absolute; inset: 0; z-index: 10;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(8,12,20,0.75);
-      backdrop-filter: blur(4px);
-      transition: opacity 0.4s ease;
+    /* Stat pills (centre) */
+    .stat-pills { display: flex; gap: 6px; }
+    .s-pill {
+      display: flex; flex-direction: column; align-items: center;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 5px 11px; min-width: 54px;
+      backdrop-filter: blur(14px);
     }
-    .countdown-overlay.hidden { opacity: 0; pointer-events: none; }
-    .countdown-num {
-      font-family: var(--font-display);
-      font-size: clamp(80px, 25vw, 160px);
-      font-weight: 900;
-      background: linear-gradient(135deg, #00e682, #00b5ff);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
-      animation: countdownPulse 1s ease forwards;
-    }
+    .sp-v { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; line-height: 1; }
+    .sp-l { font-size: 8px; color: var(--txt3); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+    .c-time { color: var(--acc2); }
+    .c-cal  { color: var(--acc3); }
 
-    /* Side Panel */
-    .side-panel {
-      background: var(--bg2);
-      border-left: 1px solid var(--border);
-      display: flex; flex-direction: column;
-      overflow-y: auto; overflow-x: hidden;
-      padding: 16px;
-      gap: 12px;
-    }
-    .panel-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 14px 16px;
-      backdrop-filter: blur(10px);
-    }
-    .panel-card-label {
-      font-size: 10px; font-weight: 600;
-      letter-spacing: 2px; text-transform: uppercase;
-      color: var(--text3);
-      margin-bottom: 6px;
-    }
-    .panel-card-value {
-      font-family: var(--font-display);
-      font-size: 28px; font-weight: 700;
-      color: var(--text);
-      line-height: 1;
-    }
-    .panel-card-sub {
-      font-size: 11px; color: var(--text2); margin-top: 2px;
-    }
-    .timer-value { color: var(--accent2); }
-    .rpm-value { color: var(--accent); }
-    .cal-value { color: var(--accent3); }
+    /* Right of top bar */
+    .ov-top-r { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
-    /* Goal progress */
-    .goal-progress {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 14px 16px;
+    /* Lighting warning */
+    .light-warn {
+      padding: 5px 8px; border-radius: 8px;
+      background: rgba(255,209,102,0.14); border: 1px solid rgba(255,209,102,0.28);
+      color: var(--gold); font-size: 11px; font-weight: 600;
+      opacity: 0; transition: opacity .3s; white-space: nowrap;
     }
-    .goal-progress-label {
-      display: flex; justify-content: space-between; align-items: center;
-      font-size: 11px; margin-bottom: 8px;
-    }
-    .goal-progress-label span:first-child { color: var(--text3); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; font-size: 10px; }
-    .goal-progress-label span:last-child { color: var(--text2); font-family: var(--font-display); font-size: 14px; font-weight: 700; }
-    .progress-track {
-      height: 6px; background: var(--surface2); border-radius: 99px;
-      overflow: hidden;
-    }
-    .progress-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #00e682, #00b5ff);
-      border-radius: 99px;
-      transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
-    }
+    .light-warn.show { opacity: 1; }
 
-    /* Phase indicator */
-    .phase-indicator {
-      display: flex; gap: 6px;
+    /* Icon button */
+    .icon-btn {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--txt); font-size: 14px;
+      padding: 7px 9px; cursor: pointer;
+      backdrop-filter: blur(14px); transition: all .2s; line-height: 1;
     }
-    .phase-dot {
-      flex: 1; height: 4px; border-radius: 99px;
-      background: var(--surface2);
-      transition: background 0.3s ease;
-    }
-    .phase-dot.open { background: var(--accent); }
-    .phase-dot.closed { background: var(--accent2); }
+    .icon-btn:hover { border-color: rgba(255,255,255,0.2); }
+    .icon-btn.on { color: var(--acc2); border-color: rgba(0,181,255,0.3); }
 
-    /* Confidence bar */
-    .confidence-wrap {
+    /* ── Goal bar ── */
+    .ov-goal {
+      position: absolute; top: 62px; left: 12px; right: 12px; z-index: 6;
       display: flex; align-items: center; gap: 8px;
     }
-    .confidence-label { font-size: 10px; color: var(--text3); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; width: 64px; flex-shrink: 0; }
-    .confidence-bar {
-      flex: 1; height: 4px;
-      background: var(--surface2); border-radius: 99px; overflow: hidden;
-    }
-    .confidence-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--red), var(--gold), var(--accent));
-      border-radius: 99px;
-      transition: width 0.3s ease;
-    }
-    .confidence-pct { font-size: 11px; font-family: var(--font-display); font-weight: 700; color: var(--text2); width: 28px; text-align: right; }
+    .g-track { flex: 1; height: 3px; background: rgba(255,255,255,0.09); border-radius: 99px; overflow: hidden; }
+    .g-fill  { height: 100%; background: linear-gradient(90deg,#00e682,#00b5ff); border-radius: 99px; transition: width .5s var(--ease); }
+    .g-txt   { font-size: 10px; font-weight: 600; color: var(--txt2); white-space: nowrap; }
 
-    /* Controls bar */
-    .controls-bar {
-      background: var(--bg2);
-      border-top: 1px solid var(--border);
-      padding: 12px 20px;
-      display: flex; align-items: center; justify-content: center; gap: 12px;
-      flex-shrink: 0;
+    /* ── Form badge ── */
+    .form-badge {
+      position: absolute; top: 86px; left: 50%; transform: translateX(-50%);
+      z-index: 6; padding: 6px 14px; border-radius: 99px;
+      font-size: 12px; font-weight: 600; letter-spacing: 0.3px;
+      opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap;
     }
-    .btn-control {
-      padding: 11px 24px;
-      border-radius: var(--radius-sm);
-      font-family: var(--font-display);
-      font-size: 15px; font-weight: 700;
-      letter-spacing: 0.5px;
-      cursor: pointer;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--text);
-      transition: all var(--transition);
-      display: flex; align-items: center; gap: 7px;
-    }
-    .btn-control:hover { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.08); }
-    .btn-control:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
-    .btn-control.start-btn {
-      background: linear-gradient(135deg, #00e682, #00b5ff);
-      border-color: transparent;
-      color: #080c14;
-      padding: 11px 32px;
-    }
-    .btn-control.start-btn:hover { box-shadow: 0 6px 24px rgba(0,230,130,0.3); transform: translateY(-1px); }
-    .btn-control.pause-btn { border-color: rgba(255,209,102,0.3); color: var(--gold); }
-    .btn-sound.active { color: var(--accent2); border-color: rgba(0,181,255,0.3); }
-    .btn-focus { }
+    .form-badge.show { opacity: 1; }
+    .form-badge.warn { background: rgba(255,107,61,0.18); border: 1px solid rgba(255,107,61,0.36); color: var(--acc3); }
+    .form-badge.good { background: rgba(0,230,130,0.18); border: 1px solid rgba(0,230,130,0.36); color: var(--acc); }
 
-    /* Mobile HUD */
-    .mobile-hud {
-      display: none;
-      position: absolute; top: 0; left: 0; right: 0;
-      z-index: 5;
-      padding: 10px;
-      gap: 8px;
-      justify-content: space-between;
+    /* ── Rep ring (centre of camera) ── */
+    .rep-overlay {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%,-50%); z-index: 5; text-align: center;
     }
-    .mobile-stat {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 6px 10px;
-      backdrop-filter: blur(10px);
-      text-align: center;
-      flex: 1;
+    .ring-wrap { position: relative; width: 140px; height: 140px; margin: 0 auto; }
+    .ring-svg  { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+    .ring-bg   { fill: none; stroke: rgba(255,255,255,0.07); }
+    .ring-fg   { fill: none; stroke: url(#rg); stroke-linecap: round; transition: stroke-dashoffset .5s var(--ease); }
+    .ring-num  { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .rep-n {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 56px; font-weight: 900; line-height: 1; color: #fff;
+      transition: transform .15s cubic-bezier(0.34,1.56,0.64,1);
     }
-    .mobile-stat-val { font-family: var(--font-display); font-size: 18px; font-weight: 700; line-height: 1; }
-    .mobile-stat-lbl { font-size: 9px; color: var(--text3); letter-spacing: 1.5px; text-transform: uppercase; }
+    .rep-n.bump { transform: scale(1.22); }
+    .rep-lbl { font-size: 9px; font-weight: 600; color: var(--txt2); letter-spacing: 2px; }
 
-    /* ─────────── MILESTONE TOAST ─────────── */
-    .milestone-toast {
-      position: fixed; top: 24px; left: 50%; transform: translateX(-50%) translateY(-80px);
-      z-index: 100;
-      padding: 12px 22px;
-      border-radius: 99px;
-      background: var(--surface);
-      border: 1px solid var(--border-accent);
-      backdrop-filter: blur(20px);
-      font-family: var(--font-display);
-      font-size: 16px; font-weight: 700;
-      color: var(--accent);
-      box-shadow: 0 8px 40px rgba(0,230,130,0.2);
-      transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease;
-      opacity: 0;
-      white-space: nowrap;
-    }
-    .milestone-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    /* Flash */
+    .rep-flash { position: absolute; inset: 0; z-index: 4; background: rgba(0,230,130,0.12); opacity: 0; pointer-events: none; transition: opacity .05s; }
+    .rep-flash.show { opacity: 1; }
 
-    /* ─────────── SUMMARY SCREEN ─────────── */
-    #screen-summary {
-      align-items: center; justify-content: center;
-      padding: 24px;
-      background: radial-gradient(ellipse 70% 60% at 50% 0%, rgba(0,230,130,0.07) 0%, transparent 60%), var(--bg);
-    }
-    .summary-card {
-      width: min(100%, 420px);
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      backdrop-filter: blur(20px);
-      overflow: hidden;
-      animation: fadeSlideUp 0.5s ease both;
-    }
-    .summary-header {
-      padding: 28px 28px 20px;
-      background: linear-gradient(135deg, rgba(0,230,130,0.1), rgba(0,181,255,0.07));
-      border-bottom: 1px solid var(--border);
-      text-align: center;
-    }
-    .summary-emoji { font-size: 40px; margin-bottom: 8px; }
-    .summary-title {
-      font-family: var(--font-display);
-      font-size: 28px; font-weight: 800;
-      color: #fff; letter-spacing: 0.5px;
-    }
-    .summary-subtitle { font-size: 13px; color: var(--text2); margin-top: 4px; }
-    .summary-stats {
-      display: grid; grid-template-columns: 1fr 1fr;
-      padding: 20px 28px; gap: 16px;
-    }
-    .summary-stat { text-align: center; }
-    .summary-stat-val {
-      font-family: var(--font-display);
-      font-size: 36px; font-weight: 800; line-height: 1;
-    }
-    .summary-stat-lbl { font-size: 11px; color: var(--text2); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 4px; }
-    .summary-actions {
-      padding: 0 28px 24px;
-      display: flex; flex-direction: column; gap: 10px;
-    }
-    .btn-secondary {
-      width: 100%; padding: 13px;
-      border-radius: var(--radius-sm);
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      color: var(--text);
-      font-family: var(--font-display);
-      font-size: 15px; font-weight: 700;
-      cursor: pointer;
-      letter-spacing: 0.5px;
-      transition: all var(--transition);
-    }
-    .btn-secondary:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.2); }
-
-    /* ─────────── ERROR SCREEN ─────────── */
-    #screen-error {
-      align-items: center; justify-content: center;
-      padding: 24px; background: var(--bg);
-    }
-    .error-card {
-      max-width: 420px; width: 100%;
-      background: var(--surface);
-      border: 1px solid rgba(255,75,110,0.3);
-      border-radius: var(--radius);
-      padding: 28px;
-      text-align: center;
-      animation: fadeSlideUp 0.4s ease both;
-    }
-    .error-icon { font-size: 36px; margin-bottom: 12px; }
-    .error-title { font-family: var(--font-display); font-size: 22px; font-weight: 700; color: var(--red); margin-bottom: 10px; }
-    .error-msg { font-size: 13px; color: var(--text2); line-height: 1.6; white-space: pre-wrap; }
-
-    /* ─────────── LOADING ─────────── */
-    .loading-overlay {
-      position: fixed; inset: 0; z-index: 200;
-      background: var(--bg);
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 16px;
-      transition: opacity 0.6s ease;
-    }
-    .loading-overlay.gone { opacity: 0; pointer-events: none; }
-    .loading-logo {
-      font-family: var(--font-display);
-      font-size: 56px; font-weight: 900;
-      background: linear-gradient(135deg, #00e682, #00b5ff);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .loading-bar-wrap {
-      width: 160px; height: 3px;
-      background: var(--surface2); border-radius: 99px; overflow: hidden;
-    }
-    .loading-bar {
-      height: 100%;
-      background: linear-gradient(90deg, #00e682, #00b5ff);
-      border-radius: 99px;
-      width: 0%;
-      transition: width 0.4s ease;
-    }
-    .loading-label { font-size: 12px; color: var(--text3); letter-spacing: 1.5px; }
-
-    /* ─────────── CONFETTI ─────────── */
-    #confetti-canvas {
-      position: fixed; inset: 0; z-index: 150;
-      pointer-events: none;
-    }
-
-    /* ─────────── LOCAL LEADERBOARD ─────────── */
-    .leaderboard-btn {
-      display: flex; align-items: center; gap: 6px;
-      font-size: 11px; color: var(--text3);
-      background: none; border: none; cursor: pointer;
-      padding: 6px;
-      transition: color var(--transition);
-    }
-    .leaderboard-btn:hover { color: var(--text2); }
-    .leaderboard-popup {
-      position: fixed; inset: 0; z-index: 90;
-      background: rgba(8,12,20,0.85);
-      backdrop-filter: blur(12px);
-      display: flex; align-items: center; justify-content: center;
-      padding: 24px;
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.3s ease;
-    }
-    .leaderboard-popup.show { opacity: 1; pointer-events: auto; }
-    .leaderboard-inner {
-      width: min(100%, 380px);
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      overflow: hidden;
-    }
-    .lb-header {
-      padding: 18px 20px;
-      border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: space-between;
-      font-family: var(--font-display); font-size: 18px; font-weight: 700;
-    }
-    .lb-close { background: none; border: none; color: var(--text2); cursor: pointer; font-size: 20px; }
-    .lb-list { padding: 12px; max-height: 320px; overflow-y: auto; }
-    .lb-row {
-      display: flex; align-items: center; gap: 12px;
-      padding: 10px 12px; border-radius: 8px;
-    }
-    .lb-row:nth-child(1) { background: rgba(255,209,102,0.07); }
-    .lb-row:nth-child(2) { background: rgba(200,200,200,0.04); }
-    .lb-row:nth-child(3) { background: rgba(255,107,61,0.04); }
-    .lb-rank { font-family: var(--font-display); font-size: 18px; font-weight: 700; width: 24px; color: var(--text3); }
-    .lb-rank:first-child { color: var(--gold); }
-    .lb-info { flex: 1; }
-    .lb-reps { font-family: var(--font-display); font-size: 20px; font-weight: 700; }
-    .lb-meta { font-size: 11px; color: var(--text3); }
-
-    /* ─────────── SHARE CARD ─────────── */
-    #share-canvas { display: none; }
-
-    /* ─────────── KEYFRAMES ─────────── */
-    @keyframes fadeSlideUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes countdownPulse {
-      0% { transform: scale(1.3); opacity: 0; }
-      20% { opacity: 1; }
-      80% { opacity: 1; transform: scale(1); }
-      100% { opacity: 0; transform: scale(0.8); }
-    }
-    @keyframes ripple {
-      0% { transform: translate(-50%,-50%) scale(0); opacity: 0.5; }
-      100% { transform: translate(-50%,-50%) scale(3); opacity: 0; }
-    }
-    @keyframes milestoneGlow {
-      0%,100% { box-shadow: 0 8px 40px rgba(0,230,130,0.2); }
-      50% { box-shadow: 0 8px 60px rgba(0,230,130,0.45); }
-    }
-
-    /* Focus mode */
-    body.focus-mode .side-panel,
-    body.focus-mode .controls-bar .btn-sound,
-    body.focus-mode .controls-bar .leaderboard-btn,
-    body.focus-mode .skeleton-toggle,
-    body.focus-mode .mobile-hud { opacity: 0; pointer-events: none; }
-    body.focus-mode .camera-vignette { opacity: 0.3; }
-
-    /* Ripple effect on rep */
+    /* Ripple */
     .ripple-el {
       position: absolute; left: 50%; top: 50%;
-      width: 130px; height: 130px;
-      border-radius: 50%;
-      border: 2px solid rgba(0,230,130,0.6);
-      pointer-events: none;
-      animation: ripple 0.7s ease-out forwards;
-      z-index: 4;
+      width: 140px; height: 140px; border-radius: 50%;
+      border: 2px solid rgba(0,230,130,0.5); pointer-events: none;
+      animation: ripple .7s ease-out forwards; z-index: 4;
+    }
+
+    /* ── Bottom controls overlay ── */
+    .ov-bottom {
+      position: absolute; bottom: 0; left: 0; right: 0; z-index: 6;
+      background: linear-gradient(to top, rgba(8,12,20,0.88), transparent);
+      padding: 20px 20px 20px;
+    }
+    .ov-btns { display: flex; align-items: center; justify-content: center; gap: 12px; }
+
+    .ov-round {
+      width: 56px; height: 56px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; cursor: pointer; border: 1px solid var(--border);
+      background: var(--surface); backdrop-filter: blur(14px);
+      transition: all .2s; flex-shrink: 0;
+    }
+    .ov-round:disabled { opacity: 0.28; pointer-events: none; }
+    .ov-reset { color: var(--txt2); }
+    .ov-reset:hover { color: var(--txt); border-color: rgba(255,255,255,0.2); }
+    .ov-pause { color: var(--gold); border-color: rgba(255,209,102,0.22); background: rgba(255,209,102,0.09); }
+    .ov-pause:hover { background: rgba(255,209,102,0.18); }
+
+    .ov-start {
+      padding: 16px 44px; border-radius: 14px;
+      background: linear-gradient(135deg,#00e682,#00b5ff);
+      border: none; color: #080c14;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 20px; font-weight: 800; letter-spacing: .5px;
+      cursor: pointer; transition: box-shadow .2s, transform .15s;
+    }
+    .ov-start:hover { box-shadow: 0 6px 28px rgba(0,230,130,0.38); transform: translateY(-1px); }
+    .ov-start:active { transform: none; }
+    .ov-start.stop { background: linear-gradient(135deg,#ff4b6e,#ff6b3d); }
+
+    /* ── Countdown ── */
+    .countdown {
+      position: absolute; inset: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(8,12,20,0.72); backdrop-filter: blur(4px);
+      transition: opacity .3s;
+    }
+    .countdown.hide { opacity: 0; pointer-events: none; }
+    .cd-n {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: clamp(90px,28vw,160px); font-weight: 900;
+      background: linear-gradient(135deg,#00e682,#00b5ff);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      animation: cdp .88s ease forwards;
+    }
+
+    /* ── Desktop side panel ── */
+    .d-panel {
+      width: 268px; flex-shrink: 0;
+      background: var(--bg2); border-left: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow-y: auto; padding: 14px; gap: 10px;
+    }
+    .d-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--rs); padding: 13px 15px;
+    }
+    .d-label { font-size: 9px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--txt3); margin-bottom: 5px; }
+    .d-val   { font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 700; line-height: 1; }
+    .d-sub   { font-size: 11px; color: var(--txt2); margin-top: 2px; }
+    .d-goal-bar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--rs); padding: 13px 15px; }
+    .d-goal-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .d-goal-row span:first-child { font-size: 9px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--txt3); }
+    .d-goal-row span:last-child  { font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 700; color: var(--txt2); }
+    .d-track { height: 5px; background: var(--surf2); border-radius: 99px; overflow: hidden; }
+    .d-fill  { height: 100%; background: linear-gradient(90deg,#00e682,#00b5ff); border-radius: 99px; transition: width .5s var(--ease); }
+    .phase-dots   { display: flex; gap: 5px; margin-bottom: 4px; }
+    .phase-dot    { flex: 1; height: 4px; border-radius: 99px; background: var(--surf2); transition: background .3s; }
+    .phase-dot.op { background: var(--acc); }
+    .phase-dot.cl { background: var(--acc2); }
+    .phase-lbls   { display: flex; justify-content: space-between; }
+    .phase-lbls span { font-size: 9px; color: var(--txt3); letter-spacing: 1px; }
+    .conf-row  { display: flex; align-items: center; gap: 8px; }
+    .conf-lbl  { font-size: 9px; color: var(--txt3); letter-spacing: 1.5px; text-transform: uppercase; width: 64px; flex-shrink: 0; }
+    .conf-bar  { flex: 1; height: 4px; background: var(--surf2); border-radius: 99px; overflow: hidden; }
+    .conf-fill { height: 100%; background: linear-gradient(90deg,var(--red),var(--gold),var(--acc)); border-radius: 99px; transition: width .3s; }
+    .conf-pct  { font-size: 11px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; color: var(--txt2); width: 28px; text-align: right; }
+
+    /* Desktop controls bar */
+    .d-controls {
+      position: absolute; bottom: 0; left: 0; right: 268px;
+      background: var(--bg2); border-top: 1px solid var(--border);
+      padding: 11px 16px; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .d-btn {
+      padding: 10px 20px; border-radius: var(--rs);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px; font-weight: 700; letter-spacing: .3px;
+      cursor: pointer; border: 1px solid var(--border);
+      background: var(--surface); color: var(--txt);
+      transition: all .2s;
+    }
+    .d-btn:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); }
+    .d-btn:disabled { opacity: 0.28; pointer-events: none; }
+    .d-btn.pri { background: linear-gradient(135deg,#00e682,#00b5ff); border-color: transparent; color: #080c14; padding: 10px 28px; }
+    .d-btn.pri:hover { box-shadow: 0 4px 20px rgba(0,230,130,0.3); }
+    .d-btn.pri.stop { background: linear-gradient(135deg,#ff4b6e,#ff6b3d); }
+    .d-btn.paus { border-color: rgba(255,209,102,0.25); color: var(--gold); }
+
+    /* ════════════════════════════════
+       SUMMARY SCREEN
+    ════════════════════════════════ */
+    #screen-summary {
+      align-items: center; justify-content: center;
+      padding: 24px; overflow-y: auto;
+      background:
+        radial-gradient(ellipse 65% 50% at 50% 0%, rgba(0,230,130,0.08) 0%, transparent 55%),
+        var(--bg);
+    }
+    .sum-card {
+      width: min(100%,400px);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); overflow: hidden;
+      animation: up .42s ease both;
+    }
+    .sum-head {
+      padding: 24px 24px 18px; text-align: center;
+      background: linear-gradient(135deg,rgba(0,230,130,0.09),rgba(0,181,255,0.06));
+      border-bottom: 1px solid var(--border);
+    }
+    .sum-emoji { font-size: 36px; margin-bottom: 8px; }
+    .sum-title { font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 800; }
+    .sum-sub   { font-size: 13px; color: var(--txt2); margin-top: 4px; }
+    .sum-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 18px 22px; gap: 14px; }
+    .sum-stat  { text-align: center; }
+    .sum-val   { font-family: 'Barlow Condensed', sans-serif; font-size: 33px; font-weight: 800; line-height: 1; }
+    .sum-lbl   { font-size: 9px; color: var(--txt2); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 3px; }
+    .sum-acts  { padding: 0 22px 22px; display: flex; flex-direction: column; gap: 9px; }
+    .btn-sec {
+      width: 100%; padding: 12px;
+      border-radius: var(--rs); background: var(--surf2); border: 1px solid var(--border);
+      color: var(--txt); font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px; font-weight: 700; cursor: pointer; transition: all .2s;
+    }
+    .btn-sec:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.18); }
+
+    /* ════════════════════════════════
+       ERROR SCREEN
+    ════════════════════════════════ */
+    #screen-error {
+      align-items: center; justify-content: center; padding: 24px; background: var(--bg);
+    }
+    .err-card {
+      max-width: 400px; width: 100%;
+      background: var(--surface); border: 1px solid rgba(255,75,110,0.28);
+      border-radius: var(--r); padding: 28px; text-align: center;
+      animation: up .4s ease both;
+    }
+    .err-icon  { font-size: 32px; margin-bottom: 10px; }
+    .err-title { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; color: var(--red); margin-bottom: 8px; }
+    .err-msg   { font-size: 13px; color: var(--txt2); line-height: 1.55; white-space: pre-wrap; }
+
+    /* Hidden share canvas */
+    #share-cv { display: none; }
+
+    /* ════════════════════════════════
+       ANIMATIONS
+    ════════════════════════════════ */
+    @keyframes up     { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes ripple { 0%{transform:translate(-50%,-50%) scale(0);opacity:.5;} 100%{transform:translate(-50%,-50%) scale(3);opacity:0;} }
+    @keyframes cdp    { 0%{transform:scale(1.3);opacity:0;} 18%{opacity:1;} 80%{opacity:1;transform:scale(1);} 100%{opacity:0;transform:scale(0.8);} }
+
+    /* ════════════════════════════════
+       MOBILE LAYOUT
+    ════════════════════════════════ */
+    @media (max-width: 700px) {
+      /* Workout: camera is the whole screen */
+      #screen-workout { flex-direction: column; }
+      .cam-area { flex: 1; width: 100%; }
+      .d-panel    { display: none; }
+      .d-controls { display: none; }
+
+      /* Safe areas */
+      .ov-top    { padding-top: max(12px, env(safe-area-inset-top) + 8px); }
+      .ov-goal   { top: max(64px, env(safe-area-inset-top) + 56px); }
+      .form-badge{ top: max(84px, env(safe-area-inset-top) + 76px); }
+      .ov-bottom { padding-bottom: max(20px, env(safe-area-inset-bottom) + 14px); }
+
+      /* Bigger rep ring and controls */
+      .ring-wrap { width: 160px; height: 160px; }
+      .rep-n     { font-size: 64px; }
+      .ov-start  { font-size: 21px; padding: 17px 48px; }
+      .ov-round  { width: 62px; height: 62px; font-size: 22px; }
+
+      /* Welcome screen */
+      #screen-welcome {
+        justify-content: flex-start;
+        padding-top: max(32px, env(safe-area-inset-top) + 24px);
+        padding-bottom: max(24px, env(safe-area-inset-bottom) + 16px);
+      }
+      .w-logo { font-size: clamp(58px,20vw,88px); }
+      .w-tag  { margin-bottom: 26px; }
+      .w-card { padding: 18px; }
+
+      /* Summary */
+      #screen-summary {
+        align-items: flex-start; justify-content: flex-start;
+        padding-top: max(20px, env(safe-area-inset-top) + 14px);
+        padding-bottom: max(20px, env(safe-area-inset-bottom) + 14px);
+      }
+      .sum-card { width: 100%; }
+
+      /* Leaderboard as bottom sheet */
+      .lb-popup { align-items: flex-end; padding: 0; }
+      .lb-inner {
+        width: 100%; border-radius: var(--r) var(--r) 0 0;
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
+      }
+      .lb-list { max-height: 52vh; }
+
+      /* Toast safe area */
+      .toast { top: max(14px, env(safe-area-inset-top) + 6px); max-width: calc(100vw - 32px); white-space: normal; text-align: center; }
+    }
+
+    @media (max-width: 380px) {
+      .ring-wrap { width: 138px; height: 138px; }
+      .rep-n     { font-size: 52px; }
     }
   </style>
 </head>
 <body>
 
 <!-- Loading -->
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="loading-logo">JUSTIFY</div>
-  <div class="loading-bar-wrap"><div class="loading-bar" id="loadingBar"></div></div>
-  <div class="loading-label" id="loadingLabel">INITIALIZING POSE ENGINE</div>
+<div id="loading">
+  <div class="ld-logo">JUSTIFY</div>
+  <div class="ld-track"><div class="ld-bar" id="ldBar"></div></div>
+  <div class="ld-lbl" id="ldLbl">Initializing</div>
 </div>
 
-<!-- Confetti canvas -->
-<canvas id="confetti-canvas"></canvas>
+<!-- Toast -->
+<div class="toast" id="toast"></div>
 
-<!-- Milestone toast -->
-<div class="milestone-toast" id="milestoneToast">🔥 10 reps!</div>
+<!-- Confetti -->
+<canvas id="confetti-c"></canvas>
 
 <!-- Leaderboard popup -->
-<div class="leaderboard-popup" id="leaderboardPopup">
-  <div class="leaderboard-inner">
-    <div class="lb-header">
-      🏆 Best Sessions
-      <button class="lb-close" id="lbClose">✕</button>
-    </div>
+<div class="lb-popup" id="lbPopup">
+  <div class="lb-inner">
+    <div class="lb-head">🏆 Best Sessions <button class="lb-x" id="lbX">✕</button></div>
     <div class="lb-list" id="lbList"></div>
   </div>
 </div>
 
 <div class="app">
-  <!-- WELCOME SCREEN -->
-  <div class="screen" id="screen-welcome">
-    <div class="welcome-logo">JUSTIFY</div>
-    <div class="welcome-tagline">Earn Your Screen Time</div>
-    <div class="welcome-card">
 
-      <!-- Auth row -->
-      <div id="authSection" style="margin-bottom:16px;">
-        <button class="btn-secondary" id="loginBtn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px;">
-          <svg width="18" height="18" viewBox="0 0 18 18"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/><path d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
+  <!-- ══ WELCOME ══ -->
+  <div class="screen" id="screen-welcome">
+    <div class="w-logo">JUSTIFY</div>
+    <div class="w-tag">Earn Your Screen Time</div>
+    <div class="w-card">
+
+      <!-- Auth -->
+      <div>
+        <button class="auth-sign-in" id="loginBtn">
+          <svg width="17" height="17" viewBox="0 0 18 18" aria-hidden="true">
+            <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908C16.658 14.017 17.64 11.71 17.64 9.2z" fill="#4285F4"/>
+            <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+            <path d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z" fill="#FBBC05"/>
+            <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z" fill="#EA4335"/>
+          </svg>
           Sign in with Google
         </button>
-        <div id="userInfo" style="display:none;align-items:center;justify-content:space-between;padding:10px 12px;background:rgba(0,230,130,0.07);border:1px solid rgba(0,230,130,0.2);border-radius:var(--radius-sm);">
-          <span id="userEmail" style="font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;"></span>
-          <button id="logoutBtn" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;flex-shrink:0;padding:0 0 0 8px;">Sign out</button>
+        <div class="auth-info" id="authInfo">
+          <span class="auth-email" id="authEmail"></span>
+          <button class="auth-out" id="logoutBtn">Sign out</button>
         </div>
       </div>
 
       <div class="goal-row">
-        <label for="dailyGoalInput">Daily Goal</label>
-        <input class="goal-input" id="dailyGoalInput" type="number" min="5" max="500" value="50"/>
-        <label for="dailyGoalInput" style="font-size:11px;color:var(--text2)">reps</label>
+        <label for="goalInput">Daily Goal</label>
+        <input class="goal-input" id="goalInput" type="number" min="5" max="500" value="50"/>
+        <label for="goalInput" style="font-size:11px;color:var(--txt2)">reps</label>
       </div>
-      <div class="streak-display" id="streakDisplay">
-        <span>🔥</span>
-        <span class="streak-num" id="streakNum">0</span>
-        <span style="color:var(--text2);font-size:12px">day streak</span>
+
+      <div class="streak-pill">
+        🔥 <span class="sn" id="streakNum">0</span>
+        <span>day streak</span>
       </div>
-      <button class="btn-primary" id="welcomeStartBtn">Start Workout →</button>
+
+      <button class="btn-primary" id="startBtn">Start Workout →</button>
     </div>
-    <div style="margin-top:16px;display:flex;gap:12px;">
-      <button class="leaderboard-btn" id="showLeaderboard">🏆 Best sessions</button>
+    <div class="w-footer">
+      <button class="ghost-btn" id="lbBtnW">🏆 Best sessions</button>
     </div>
   </div>
 
-  <!-- WORKOUT SCREEN -->
+  <!-- ══ WORKOUT ══ -->
   <div class="screen" id="screen-workout">
 
-    <!-- Camera fills 100% of screen always -->
-    <div class="camera-area" id="cameraArea">
-      <video id="video" autoplay playsinline muted></video>
-      <canvas id="overlay"></canvas>
+    <div class="cam-area">
+      <video id="vid" autoplay playsinline muted></video>
+      <canvas id="pose-cv"></canvas>
 
-      <!-- SVG gradients -->
+      <!-- SVG gradient for ring -->
       <svg width="0" height="0" style="position:absolute">
         <defs>
-          <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stop-color="#00e682"/>
             <stop offset="100%" stop-color="#00b5ff"/>
           </linearGradient>
         </defs>
       </svg>
 
-      <div class="camera-vignette"></div>
+      <div class="vignette"></div>
 
-      <!-- Silhouette guide -->
-      <div class="silhouette-guide" id="silhouetteGuide">
-        <svg viewBox="0 0 100 220" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="50" cy="20" r="14" stroke="white" stroke-width="2.5" fill="none"/>
+      <!-- Silhouette -->
+      <div class="silhouette" id="silhouette">
+        <svg viewBox="0 0 100 220" fill="none">
+          <circle cx="50" cy="20" r="14" stroke="white" stroke-width="2.5"/>
           <line x1="50" y1="34" x2="50" y2="100" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
           <line x1="50" y1="55" x2="15" y2="80" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
           <line x1="50" y1="55" x2="85" y2="80" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
@@ -1016,1155 +678,871 @@
         </svg>
       </div>
 
-      <!-- ── TOP BAR OVERLAY ── -->
-      <div class="overlay-top" id="overlayTop">
-        <!-- Left: skeleton toggle -->
-        <button class="skeleton-toggle active" id="skeletonToggle" aria-label="Toggle skeleton overlay">
-          <div class="dot"></div>
-          Skeleton
-        </button>
-        <!-- Center: stat pills -->
-        <div class="top-stats">
-          <div class="top-stat"><span class="top-stat-val timer-value" id="mobileTimer">0:00</span><span class="top-stat-lbl">TIME</span></div>
-
-          <div class="top-stat"><span class="top-stat-val cal-value" id="mobileCal">0</span><span class="top-stat-lbl">CAL</span></div>
+      <!-- Top bar -->
+      <div class="ov-top">
+        <button class="skel-btn on" id="skelBtn"><div class="dot"></div>Skeleton</button>
+        <div class="stat-pills">
+          <div class="s-pill"><span class="sp-v c-time" id="ovTimer">0:00</span><span class="sp-l">Time</span></div>
+          <div class="s-pill"><span class="sp-v c-cal"  id="ovCal">0</span>   <span class="sp-l">Cal</span></div>
         </div>
-        <!-- Right: sound + lighting warn -->
-        <div class="top-right">
-          <div class="lighting-warn" id="lightingWarn">⚠</div>
-          <button class="icon-btn btn-sound" id="soundBtn" aria-label="Toggle sound">🔇</button>
+        <div class="ov-top-r">
+          <div class="light-warn" id="lightWarn">⚠ Dark</div>
+          <button class="icon-btn" id="soundBtn">🔇</button>
         </div>
       </div>
 
-      <!-- ── GOAL PROGRESS BAR ── -->
-      <div class="overlay-goal">
-        <div class="overlay-goal-track">
-          <div class="overlay-goal-fill" id="goalProgressFill" style="width:0%"></div>
-        </div>
-        <span class="overlay-goal-label" id="goalFraction">0 / 50</span>
+      <!-- Goal bar -->
+      <div class="ov-goal">
+        <div class="g-track"><div class="g-fill" id="ovGoalFill" style="width:0%"></div></div>
+        <span class="g-txt" id="ovGoalTxt">0 / 50</span>
       </div>
 
-      <!-- ── REP COUNTER (centre) ── -->
-      <div class="rep-overlay" id="repOverlay">
-        <div class="rep-ring-wrap">
-          <svg class="rep-ring-svg" id="repRingSvg" viewBox="0 0 130 130">
-            <circle class="rep-ring-bg" cx="65" cy="65" r="56" stroke-width="6"/>
-            <circle class="rep-ring-fg" id="repRingFg" cx="65" cy="65" r="56" stroke-width="6"
-                    stroke-dasharray="351.86" stroke-dashoffset="351.86"/>
+      <!-- Form badge -->
+      <div class="form-badge" id="formBadge"></div>
+
+      <!-- Rep ring -->
+      <div class="rep-overlay">
+        <div class="ring-wrap" id="ringWrap">
+          <svg class="ring-svg" viewBox="0 0 140 140">
+            <circle class="ring-bg" cx="70" cy="70" r="60" stroke-width="6"/>
+            <circle class="ring-fg" id="ringFg" cx="70" cy="70" r="60" stroke-width="6"
+                    stroke-dasharray="376.99" stroke-dashoffset="376.99"/>
           </svg>
-          <div class="rep-number">
-            <div class="rep-count" id="repCount">0</div>
-            <div class="rep-label">REPS</div>
+          <div class="ring-num">
+            <div class="rep-n" id="repN">0</div>
+            <div class="rep-lbl">REPS</div>
           </div>
-        </div>
-      </div>
-
-      <!-- Form feedback -->
-      <div class="form-badge" id="formBadge">Arms higher!</div>
-
-      <!-- ── BOTTOM CONTROLS OVERLAY ── -->
-      <div class="overlay-bottom" id="overlayBottom">
-        <div class="overlay-bottom-inner">
-          <button class="ov-btn ov-btn-secondary" id="resetWorkoutBtn" aria-label="Reset">↺</button>
-          <button class="ov-btn ov-btn-primary" id="startStopBtn" aria-label="Start workout">▶ Start</button>
-          <button class="ov-btn ov-btn-pause" id="pauseBtn" disabled aria-label="Pause">⏸</button>
         </div>
       </div>
 
       <!-- Flash -->
       <div class="rep-flash" id="repFlash"></div>
 
+      <!-- Bottom controls -->
+      <div class="ov-bottom">
+        <div class="ov-btns">
+          <button class="ov-round ov-reset" id="resetBtn">↺</button>
+          <button class="ov-start" id="startStopBtn">▶ Start</button>
+          <button class="ov-round ov-pause" id="pauseBtn" disabled>⏸</button>
+        </div>
+      </div>
+
       <!-- Countdown -->
-      <div class="countdown-overlay hidden" id="countdownOverlay">
-        <div class="countdown-num" id="countdownNum">3</div>
+      <div class="countdown hide" id="countdown">
+        <div class="cd-n" id="cdN">3</div>
       </div>
     </div>
 
-    <!-- Desktop side panel (hidden on mobile) -->
-    <div class="desktop-shell">
-      <div class="side-panel">
-        <div class="panel-card">
-          <div class="panel-card-label">Session Time</div>
-          <div class="panel-card-value timer-value" id="sessionTimer">0:00</div>
+    <!-- Desktop side panel -->
+    <div class="d-panel">
+      <div class="d-card">
+        <div class="d-label">Session Time</div>
+        <div class="d-val c-time" id="dTimer">0:00</div>
+      </div>
+      <div class="d-card">
+        <div class="d-label">Est. Calories</div>
+        <div class="d-val c-cal" id="dCal">0</div>
+        <div class="d-sub">kcal burned</div>
+      </div>
+      <div class="d-goal-bar">
+        <div class="d-goal-row">
+          <span>Daily Goal</span>
+          <span id="dGoalTxt">0 / 50</span>
         </div>
+        <div class="d-track"><div class="d-fill" id="dGoalFill" style="width:0%"></div></div>
+      </div>
+      <div class="d-card">
+        <div class="d-label" style="margin-bottom:8px">Phase</div>
+        <div class="phase-dots">
+          <div class="phase-dot" id="dotOp"></div>
+          <div class="phase-dot" id="dotCl"></div>
+        </div>
+        <div class="phase-lbls"><span>OPEN</span><span>CLOSED</span></div>
+      </div>
+      <div class="d-card" style="display:flex;flex-direction:column;gap:8px">
+        <div class="d-label">Confidence</div>
+        <div class="conf-row">
+          <span class="conf-lbl">Pose</span>
+          <div class="conf-bar"><div class="conf-fill" id="confP" style="width:0%"></div></div>
+          <span class="conf-pct" id="confPPct">—</span>
+        </div>
+        <div class="conf-row">
+          <span class="conf-lbl">Detection</span>
+          <div class="conf-bar"><div class="conf-fill" id="confD" style="width:0%"></div></div>
+          <span class="conf-pct" id="confDPct">—</span>
+        </div>
+      </div>
+      <button class="ghost-btn" id="lbBtnP" style="margin-top:auto">🏆 Best sessions</button>
+    </div>
 
-        <div class="panel-card">
-          <div class="panel-card-label">Est. Calories</div>
-          <div class="panel-card-value cal-value" id="calDisplay">0</div>
-          <div class="panel-card-sub">kcal burned</div>
-        </div>
-        <div class="goal-progress">
-          <div class="goal-progress-label">
-            <span>Daily Goal</span>
-            <span id="goalFractionDesktop">0 / 50</span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill" id="goalProgressFillDesktop" style="width:0%"></div>
-          </div>
-        </div>
-        <div class="panel-card">
-          <div class="panel-card-label" style="margin-bottom:8px">Phase</div>
-          <div class="phase-indicator">
-            <div class="phase-dot" id="phaseDotOpen"></div>
-            <div class="phase-dot" id="phaseDotClosed"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;margin-top:5px;">
-            <span style="font-size:9px;color:var(--text3);letter-spacing:1px">OPEN</span>
-            <span style="font-size:9px;color:var(--text3);letter-spacing:1px">CLOSED</span>
-          </div>
-        </div>
-        <div class="panel-card" style="padding:12px 16px;display:flex;flex-direction:column;gap:8px;">
-          <div class="panel-card-label">Confidence</div>
-          <div class="confidence-wrap">
-            <div class="confidence-label">Pose</div>
-            <div class="confidence-bar"><div class="confidence-fill" id="confPose" style="width:0%"></div></div>
-            <div class="confidence-pct" id="confPosePct">—</div>
-          </div>
-          <div class="confidence-wrap">
-            <div class="confidence-label">Detection</div>
-            <div class="confidence-bar"><div class="confidence-fill" id="confDet" style="width:0%"></div></div>
-            <div class="confidence-pct" id="confDetPct">—</div>
-          </div>
-        </div>
-        <button class="leaderboard-btn" id="showLeaderboard2" style="margin-top:auto;">🏆 Best sessions</button>
-      </div>
-      <!-- Desktop controls bar -->
-      <div class="controls-bar">
-        <button class="btn-control btn-sound" id="soundBtnDesktop" aria-label="Toggle sound" title="Sound (S)">🔇</button>
-        <button class="btn-control start-btn" id="startStopBtnDesktop" aria-label="Start workout" title="Space">▶ Start</button>
-        <button class="btn-control pause-btn" id="pauseBtnDesktop" disabled aria-label="Pause" title="P">⏸ Pause</button>
-        <button class="btn-control" id="resetWorkoutBtnDesktop" aria-label="Reset" title="R">↺ Reset</button>
-        <button class="btn-control" id="focusModeBtn" aria-label="Focus mode" title="F">⊡</button>
-        <button class="leaderboard-btn" id="showLeaderboard3">🏆</button>
-      </div>
+    <!-- Desktop controls bar -->
+    <div class="d-controls">
+      <button class="d-btn" id="dSoundBtn">🔇</button>
+      <button class="d-btn pri" id="dStartStopBtn">▶ Start</button>
+      <button class="d-btn paus" id="dPauseBtn" disabled>⏸ Pause</button>
+      <button class="d-btn" id="dResetBtn">↺ Reset</button>
+      <button class="d-btn" id="focusBtn">⊡ Focus</button>
+      <button class="ghost-btn" id="lbBtnD">🏆</button>
     </div>
 
   </div>
 
-  <!-- SUMMARY SCREEN -->
+  <!-- ══ SUMMARY ══ -->
   <div class="screen" id="screen-summary">
-    <div class="summary-card" id="summaryCard">
-      <div class="summary-header">
-        <div class="summary-emoji" id="summaryEmoji">💪</div>
-        <div class="summary-title" id="summaryTitle">Workout Complete!</div>
-        <div class="summary-subtitle" id="summarySubtitle">Great session!</div>
+    <div class="sum-card">
+      <div class="sum-head">
+        <div class="sum-emoji" id="sumEmoji">💪</div>
+        <div class="sum-title" id="sumTitle">Workout Complete!</div>
+        <div class="sum-sub"   id="sumSub">Great effort!</div>
       </div>
-      <div class="summary-stats">
-        <div class="summary-stat">
-          <div class="summary-stat-val" id="sumReps" style="color:var(--accent)">0</div>
-          <div class="summary-stat-lbl">Total Reps</div>
-        </div>
-        <div class="summary-stat">
-          <div class="summary-stat-val" id="sumCal" style="color:var(--gold)">0</div>
-          <div class="summary-stat-lbl">Calories</div>
-        </div>
-        <div class="summary-stat">
-          <div class="summary-stat-val" id="sumTime" style="color:var(--accent2)">0:00</div>
-          <div class="summary-stat-lbl">Duration</div>
-        </div>
+      <div class="sum-stats">
+        <div class="sum-stat"><div class="sum-val" style="color:var(--acc)"  id="sumReps">0</div>  <div class="sum-lbl">Reps</div></div>
+        <div class="sum-stat"><div class="sum-val" style="color:var(--acc2)" id="sumTime">0:00</div><div class="sum-lbl">Time</div></div>
+        <div class="sum-stat"><div class="sum-val" style="color:var(--gold)" id="sumCal">0</div>   <div class="sum-lbl">Calories</div></div>
       </div>
-      <div class="summary-actions">
+      <div class="sum-acts">
         <button class="btn-primary" id="doAgainBtn">Do it again →</button>
-        <button class="btn-secondary" id="shareBtn">📤 Share results</button>
-        <button class="btn-secondary" id="copyStatsBtn">📋 Copy stats</button>
-        <button class="btn-secondary" id="homeBtn" style="color:var(--text2)">← Back to home</button>
+        <button class="btn-sec"     id="shareBtn">📤 Download result card</button>
+        <button class="btn-sec"     id="copyBtn">📋 Copy stats</button>
+        <button class="btn-sec"     id="homeBtn" style="color:var(--txt2)">← Home</button>
       </div>
     </div>
-    <canvas id="share-canvas"></canvas>
+    <canvas id="share-cv"></canvas>
   </div>
 
-  <!-- ERROR SCREEN -->
+  <!-- ══ ERROR ══ -->
   <div class="screen" id="screen-error">
-    <div class="error-card">
-      <div class="error-icon">📷</div>
-      <div class="error-title">Camera Error</div>
-      <div class="error-msg" id="errorMsg"></div>
+    <div class="err-card">
+      <div class="err-icon">📷</div>
+      <div class="err-title">Camera Error</div>
+      <div class="err-msg" id="errMsg"></div>
       <div style="height:16px"></div>
       <button class="btn-primary" id="retryBtn">Try Again</button>
     </div>
   </div>
+
 </div>
 
 <script type="module">
-import { PoseLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/+esm";
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+import { PoseLandmarker, FilesetResolver, DrawingUtils }
+  from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/+esm';
+import { createClient }
+  from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-// ──────────── Supabase ────────────
-// Replace these with your actual values from supabase.com → Project Settings → API
-const SUPABASE_URL = 'https://vkgqemxdvjsbiajhzlmu.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrZ3FlbXhkdmpzYmlhamh6bG11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzMDk0MzQsImV4cCI6MjA4Nzg4NTQzNH0.maCKcwnmcEkKXf7mVqExQcVIBzhei18kZWdNHjL7qGI';
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// ── Supabase ──────────────────────────────────────────────────────────────
+// Replace with your values from supabase.com → Project Settings → API
+const SB_URL = 'https://vkgqemxdvjsbiajhzlmu.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrZ3FlbXhkdmpzYmlhamh6bG11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzMDk0MzQsImV4cCI6MjA4Nzg4NTQzNH0.maCKcwnmcEkKXf7mVqExQcVIBzhei18kZWdNHjL7qGI';
+const sb = createClient(SB_URL, SB_KEY);
 
-// Detect OAuth redirect and clean URL
-supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_IN') {
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
-});
-```
-
----
-
-**3. Also check your Supabase redirect URL setting**
-
-Go to Supabase → Authentication → URL Configuration and make sure **Site URL** is set to your Vercel URL:
-```
-https://yourapp.vercel.app
-```
-
-And under **Redirect URLs** add:
-```
-https://yourapp.vercel.app
-
-// ──────────── Constants ────────────
-const MODEL_URLS = [
-  "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
-  "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+// ── MediaPipe ─────────────────────────────────────────────────────────────
+const MODELS = [
+  'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task',
+  'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
 ];
-const WASM_ROOT = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm";
+const WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm';
 
-const EMA_ALPHA = 0.55;
-const JACK_OPEN_LEGS_RATIO = 1.22;
-const JACK_CLOSED_LEGS_RATIO = 1.10;
-const JACK_UP_OPEN = 0.035;
-const JACK_UP_CLOSED = 0.015;
-const JACK_REP_COOLDOWN_MS = 320;
-const JACK_OPEN_STREAK_FRAMES = 2;
-const TARGET_FPS = 24;
-const MIN_INFER_MS = 1000 / TARGET_FPS;
-const INACTIVITY_PAUSE_MS = 6000;
-const CALORIE_RATE = 1 / 7; // 1 kcal per 7 reps
+// ── Detection constants ───────────────────────────────────────────────────
+const EMA_A        = 0.55;
+const OPEN_LEGS    = 1.22;
+const CLOSED_LEGS  = 1.10;
+const OPEN_UP      = 0.035;
+const CLOSED_UP    = 0.015;
+const COOLDOWN_MS  = 320;
+const OPEN_STREAK  = 2;
+const MIN_FRAME_MS = 1000 / 24;
+const INACT_MS     = 6000;
+const RING_CIRC    = 2 * Math.PI * 60;
 
-const MILESTONES = [10, 25, 50, 75, 100, 150, 200];
-const MILESTONE_MSGS = {
-  10: "🔥 10 reps! You're warming up!",
-  25: "💪 25 reps! Keep it up!",
-  50: "🚀 50 reps! Halfway there!",
-  75: "⚡ 75 reps! On fire!",
-  100: "🏆 100 reps! LEGENDARY!",
-  150: "🌟 150 reps! Unstoppable!",
-  200: "👑 200 reps! You're a machine!",
+const MILESTONES = {
+  10:  '🔥 10 reps! Warming up!',
+  25:  '💪 25 reps! Keep going!',
+  50:  '🚀 50 reps! Halfway!',
+  75:  '⚡ 75 reps! On fire!',
+  100: '🏆 100 reps! Legendary!',
+  150: '🌟 150 reps! Unstoppable!',
+  200: '👑 200 reps! Machine!',
 };
 
-// ──────────── DOM refs ────────────
-const loadingOverlay = document.getElementById('loadingOverlay');
-const loadingBar = document.getElementById('loadingBar');
-const loadingLabel = document.getElementById('loadingLabel');
+// ── DOM shortcut ──────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
 
-const screenWelcome = document.getElementById('screen-welcome');
-const screenWorkout = document.getElementById('screen-workout');
-const screenSummary = document.getElementById('screen-summary');
-const screenError = document.getElementById('screen-error');
+// Loading
+const ldBar = $('ldBar'), ldLbl = $('ldLbl'), loading = $('loading');
 
-const dailyGoalInput = document.getElementById('dailyGoalInput');
-const streakNum = document.getElementById('streakNum');
-const welcomeStartBtn = document.getElementById('welcomeStartBtn');
+// Welcome
+const loginBtn   = $('loginBtn'),   authInfo   = $('authInfo');
+const authEmail  = $('authEmail'),  logoutBtn  = $('logoutBtn');
+const goalInput  = $('goalInput'),  streakNum  = $('streakNum');
+const startBtn   = $('startBtn');
 
-const video = document.getElementById('video');
-const overlayCanvas = document.getElementById('overlay');
-const ctx = overlayCanvas.getContext('2d', { alpha: true });
-const silhouetteGuide = document.getElementById('silhouetteGuide');
-const skeletonToggle = document.getElementById('skeletonToggle');
-const formBadge = document.getElementById('formBadge');
-const lightingWarn = document.getElementById('lightingWarn');
+// Camera / pose
+const vid        = $('vid'),        poseCv    = $('pose-cv');
+const poseCtx    = poseCv.getContext('2d', { alpha:true });
+const silhouette = $('silhouette'), skelBtn   = $('skelBtn');
+const lightWarn  = $('lightWarn'),  formBadge = $('formBadge');
 
-const repCountEl = document.getElementById('repCount');
-const repRingFg = document.getElementById('repRingFg');
-const repFlash = document.getElementById('repFlash');
-const countdownOverlay = document.getElementById('countdownOverlay');
-const countdownNum = document.getElementById('countdownNum');
+// Overlays
+const ovTimer    = $('ovTimer'),   ovCal     = $('ovCal');
+const ovGoalFill = $('ovGoalFill'),ovGoalTxt = $('ovGoalTxt');
+const ringWrap   = $('ringWrap'),  ringFg    = $('ringFg');
+const repN       = $('repN'),      repFlash  = $('repFlash');
+const startStopBtn = $('startStopBtn');
+const pauseBtn     = $('pauseBtn');
+const resetBtn     = $('resetBtn');
+const soundBtn     = $('soundBtn');
+const countdown    = $('countdown'), cdN = $('cdN');
 
-// Desktop panel refs
-const sessionTimerEl = document.getElementById('sessionTimer');
-const calDisplayEl = document.getElementById('calDisplay');
-const goalFractionDesktop = document.getElementById('goalFractionDesktop');
-const goalProgressFillDesktop = document.getElementById('goalProgressFillDesktop');
-const phaseDotOpen = document.getElementById('phaseDotOpen');
-const phaseDotClosed = document.getElementById('phaseDotClosed');
-const confPose = document.getElementById('confPose');
-const confDet = document.getElementById('confDet');
-const confPosePct = document.getElementById('confPosePct');
-const confDetPct = document.getElementById('confDetPct');
+// Desktop panel
+const dTimer    = $('dTimer'),    dCal     = $('dCal');
+const dGoalFill = $('dGoalFill'), dGoalTxt = $('dGoalTxt');
+const dotOp     = $('dotOp'),     dotCl    = $('dotCl');
+const confP     = $('confP'),     confPPct = $('confPPct');
+const confD     = $('confD'),     confDPct = $('confDPct');
+const dStartStop= $('dStartStopBtn'), dPause = $('dPauseBtn');
+const dReset    = $('dResetBtn'), dSound  = $('dSoundBtn');
+const focusBtn  = $('focusBtn');
 
-// Mobile overlay refs
-const mobileTimer = document.getElementById('mobileTimer');
-const mobileCal = document.getElementById('mobileCal');
-const goalProgressFillEl = document.getElementById('goalProgressFill');
-const goalFractionEl = document.getElementById('goalFraction');
+// Summary
+const doAgainBtn = $('doAgainBtn'), shareBtn = $('shareBtn');
+const copyBtn    = $('copyBtn'),    homeBtn  = $('homeBtn');
+const retryBtn   = $('retryBtn');
 
-// Mobile overlay buttons
-const startStopBtn = document.getElementById('startStopBtn');
-const pauseBtn = document.getElementById('pauseBtn');
-const resetWorkoutBtn = document.getElementById('resetWorkoutBtn');
-const soundBtn = document.getElementById('soundBtn');
+// Toast / LB / confetti
+const toast    = $('toast');
+const lbPopup  = $('lbPopup'), lbList = $('lbList'), lbX = $('lbX');
+const confettiC= $('confetti-c');
 
-// Desktop buttons
-const startStopBtnD = document.getElementById('startStopBtnDesktop');
-const pauseBtnD = document.getElementById('pauseBtnDesktop');
-const resetWorkoutBtnD = document.getElementById('resetWorkoutBtnDesktop');
-const soundBtnD = document.getElementById('soundBtnDesktop');
-const focusModeBtn = document.getElementById('focusModeBtn');
+// ── State ─────────────────────────────────────────────────────────────────
+let poseLM=null, drawU=null, stream=null, rafId=null;
+let webcamOn=false, showSkel=true, soundOn=false, focusMode=false, audioCtx=null;
 
-const milestoneToast = document.getElementById('milestoneToast');
-const leaderboardPopup = document.getElementById('leaderboardPopup');
-const lbList = document.getElementById('lbList');
-const lbClose = document.getElementById('lbClose');
+let reps=0, running=false, paused=false, startTs=0, elapsedMs=0;
+let lastInfer=0, lastRepTs=0, inactTimer=null, lightTimer=null;
 
-const doAgainBtn = document.getElementById('doAgainBtn');
-const shareBtn = document.getElementById('shareBtn');
-const copyStatsBtn = document.getElementById('copyStatsBtn');
-const homeBtn = document.getElementById('homeBtn');
-const retryBtn = document.getElementById('retryBtn');
-const confettiCanvas = document.getElementById('confetti-canvas');
+let legsEma=null, upEma=null;
+let openFrames=0, notOpenF=0, openLatched=false;
+let msHit=new Set(), goalDone=false;
+let dailyGoal=50;
 
-// Helper: sync both button sets
-function syncButtons() {
-  const running = sessionRunning;
-  const paused = sessionPaused;
-  const startLabel = running ? '■ Stop' : '▶ Start';
-  const startBg = running ? 'linear-gradient(135deg,#ff4b6e,#ff6b3d)' : '';
-  const pauseLabel = paused ? '▶' : '⏸';
-  const pauseLabelD = paused ? '▶ Resume' : '⏸ Pause';
+let toastTmr=null, formTmr=null, bumpTmr=null, confParts=[];
 
-  startStopBtn.textContent = startLabel;
-  startStopBtn.style.background = startBg;
-  if (startStopBtnD) { startStopBtnD.textContent = running ? '■ Stop' : '▶ Start'; startStopBtnD.style.background = startBg; }
+let currentUser=null, userProfile=null;
 
-  pauseBtn.textContent = pauseLabel;
-  pauseBtn.disabled = !running;
-  if (pauseBtnD) { pauseBtnD.textContent = pauseLabelD; pauseBtnD.disabled = !running; }
-}
+// ── Helpers ───────────────────────────────────────────────────────────────
+const ema   = (p,n,a) => p==null ? n : p*(1-a)+n*a;
+const valid = p => p && isFinite(p.x) && isFinite(p.y);
+const best  = (lm,ids) => { for (const i of ids) { if (valid(lm[i])) return lm[i]; } return null; };
+const fmt   = ms => { const s=Math.floor(ms/1000), m=Math.floor(s/60); return `${m}:${String(s%60).padStart(2,'0')}`; };
+const elapsed = () => (!running||paused) ? elapsedMs : elapsedMs+(performance.now()-startTs);
 
-// ──────────── State ────────────
-let poseLandmarker = null;
-let drawingUtils = null;
-let stream = null;
-let rafId = null;
-let webcamRunning = false;
-let showSkeleton = true;
-let soundEnabled = false;
-let isFocusMode = false;
-
-let repCount = 0;
-let sessionRunning = false;
-let sessionPaused = false;
-let sessionStartTime = 0;
-let totalPausedMs = 0;
-let pauseStartTime = 0;
-let sessionDurationMs = 0;
-let lastActiveAt = 0;
-let inactivityPauseTimer = null;
-let repTimestamps = [];
-
-let phase = 'unknown';
-let legsRatioEma = null;
-let upEma = null;
-let openFrames = 0;
-let notOpenFrames = 0;
-let openLatched = false;
-let lastRepAt = 0;
-let lastInferAt = 0;
-let milestonesHit = new Set();
-let goalCompleted = false;
-
-let dailyGoal = 50;
-
-// Audio context
-let audioCtx = null;
-
-// ──────────── Auth state ────────────
-let currentUser = null;
-let userProfile = null;
-
-// ──────────── Helpers ────────────
-function hypot2(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
-function ema(prev, next, alpha) { return (prev == null) ? next : (prev * (1 - alpha) + next * alpha); }
-function validPoint(p) { return p && Number.isFinite(p.x) && Number.isFinite(p.y); }
-function bestOf(landmarks, indices) {
-  for (const i of indices) { const p = landmarks[i]; if (validPoint(p)) return p; }
-  return null;
-}
-function formatTime(ms) {
-  const s = Math.floor(ms / 1000);
-  const m = Math.floor(s / 60);
-  const sec = s % 60;
-  return `${m}:${sec.toString().padStart(2, '0')}`;
-}
-
-// ──────────── Screen management ────────────
 function showScreen(id) {
-  [screenWelcome, screenWorkout, screenSummary, screenError].forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  ['screen-welcome','screen-workout','screen-summary','screen-error']
+    .forEach(s => $(s).classList.remove('active'));
+  $(id).classList.add('active');
 }
 
-// ──────────── LocalStorage (fallback) ────────────
-function getStorage(key, fallback) {
-  try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
-  catch { return fallback; }
-}
-function setStorage(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} }
+// ── Storage ───────────────────────────────────────────────────────────────
+const lsGet = (k,fb) => { try { const v=localStorage.getItem(k); return v!==null?JSON.parse(v):fb; } catch { return fb; } };
+const lsSet = (k,v)  => { try { localStorage.setItem(k,JSON.stringify(v)); } catch {} };
 
-function loadStreakLocal() {
-  const data = getStorage('justify_streak', { count: 0, lastDate: null });
-  const today = new Date().toDateString();
-  if (data.lastDate === today) return data.count;
-  const yesterday = new Date(Date.now() - 86400000).toDateString();
-  if (data.lastDate === yesterday) return data.count;
-  return 0;
+function localStreak() {
+  const d=lsGet('j_streak',{count:0,date:null});
+  const today=new Date().toDateString(), yest=new Date(Date.now()-86400000).toDateString();
+  return (d.date===today||d.date===yest) ? d.count : 0;
 }
-
 async function saveStreak() {
-  const today = new Date().toDateString();
-  const data = getStorage('justify_streak', { count: 0, lastDate: null });
-  const yesterday = new Date(Date.now() - 86400000).toDateString();
-  let count = data.lastDate === yesterday ? data.count + 1 : (data.lastDate === today ? data.count : 1);
-  setStorage('justify_streak', { count, lastDate: today });
-
+  const today=new Date().toDateString(), yest=new Date(Date.now()-86400000).toDateString();
+  const d=lsGet('j_streak',{count:0,date:null});
+  const count = d.date===yest ? d.count+1 : d.date===today ? d.count : 1;
+  lsSet('j_streak',{count,date:today});
   if (currentUser) {
-    await supabase.from('profiles').update({ streak: count, last_workout_date: today }).eq('id', currentUser.id);
+    await sb.from('profiles').update({streak:count,last_workout_date:today}).eq('id',currentUser.id);
   }
   return count;
 }
-
-function saveLeaderboard(reps, duration, cal) {
-  const board = getStorage('justify_leaderboard', []);
-  board.push({ reps, duration, cal, date: new Date().toLocaleDateString() });
-  board.sort((a, b) => b.reps - a.reps);
-  setStorage('justify_leaderboard', board.slice(0, 10));
+function saveLB(r,dur,cal) {
+  const b=lsGet('j_lb',[]);
+  b.push({reps:r,dur,cal,date:new Date().toLocaleDateString()});
+  b.sort((a,c)=>c.reps-a.reps);
+  lsSet('j_lb',b.slice(0,10));
 }
-function renderLeaderboard() {
-  const board = getStorage('justify_leaderboard', []);
-  if (!board.length) { lbList.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px">No sessions yet. Start working out!</div>'; return; }
-  const medals = ['🥇','🥈','🥉'];
-  lbList.innerHTML = board.map((s, i) => `
+function renderLB() {
+  const b=lsGet('j_lb',[]);
+  if (!b.length) { lbList.innerHTML='<div style="padding:20px;text-align:center;color:var(--txt3);font-size:13px">No sessions yet!</div>'; return; }
+  const md=['🥇','🥈','🥉'];
+  lbList.innerHTML=b.map((s,i)=>`
     <div class="lb-row">
-      <div class="lb-rank">${medals[i] || (i+1)}</div>
+      <div class="lb-rank">${md[i]||i+1}</div>
       <div class="lb-info">
         <div class="lb-reps">${s.reps} reps</div>
-        <div class="lb-meta">${s.date} · ${s.cal} kcal</div>
+        <div class="lb-meta">${s.date} · ${s.dur} · ${s.cal} kcal</div>
       </div>
     </div>`).join('');
 }
 
-// ──────────── Auth ────────────
-async function signInWithGoogle() {
-  await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: window.location.origin }
-  });
+// ── Auth ──────────────────────────────────────────────────────────────────
+function updateAuthUI() {
+  if (currentUser) {
+    loginBtn.style.display = 'none';
+    authInfo.classList.add('visible');
+    authEmail.textContent = currentUser.email;
+  } else {
+    loginBtn.style.display = 'flex';
+    authInfo.classList.remove('visible');
+  }
 }
-
-async function signOut() {
-  await supabase.auth.signOut();
-  currentUser = null;
-  userProfile = null;
-  updateAuthUI();
-  // Fall back to localStorage values
-  streakNum.textContent = loadStreakLocal();
-  dailyGoal = getStorage('justify_goal', 50);
-  dailyGoalInput.value = dailyGoal;
-}
-
-async function createProfile() {
-  const { data } = await supabase.from('profiles').insert({
-    id: currentUser.id,
-    email: currentUser.email,
-    goal: getStorage('justify_goal', 50),
-    streak: loadStreakLocal(),
-    is_pro: false
-  }).select().single();
-  userProfile = data;
-}
-
 async function loadProfile() {
-  const { data, error } = await supabase
-    .from('profiles').select('*').eq('id', currentUser.id).single();
-
+  const { data, error } = await sb.from('profiles').select('*').eq('id',currentUser.id).single();
   if (error || !data) {
-    await createProfile();
+    const { data:np } = await sb.from('profiles').insert({
+      id: currentUser.id, email: currentUser.email,
+      goal: lsGet('j_goal',50), streak: localStreak(), is_pro: false,
+    }).select().single();
+    userProfile = np;
   } else {
     userProfile = data;
-    // Sync cloud data into app
     dailyGoal = userProfile.goal || 50;
-    dailyGoalInput.value = dailyGoal;
+    goalInput.value = dailyGoal;
     streakNum.textContent = userProfile.streak || 0;
-    setStorage('justify_goal', dailyGoal);
+    lsSet('j_goal', dailyGoal);
   }
   updateAuthUI();
 }
-
-async function initAuth() {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session?.user) {
-    currentUser = session.user;
-    await loadProfile();
+function initAuth() {
+  // Handle OAuth redirect — clean the token from the URL
+  if (window.location.hash.includes('access_token')) {
+    window.history.replaceState({}, document.title, window.location.pathname);
   }
 
-  supabase.auth.onAuthStateChange(async (event, session) => {
+  sb.auth.getSession().then(({ data: { session } }) => {
+    if (session?.user) { currentUser = session.user; loadProfile(); }
+  });
+
+  sb.auth.onAuthStateChange((_event, session) => {
+    if (window.location.hash.includes('access_token')) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
     if (session?.user) {
       currentUser = session.user;
-      await loadProfile();
+      loadProfile();
     } else {
-      currentUser = null;
-      userProfile = null;
+      currentUser = null; userProfile = null;
       updateAuthUI();
     }
   });
 }
 
-function updateAuthUI() {
-  const loginBtn = document.getElementById('loginBtn');
-  const userInfo = document.getElementById('userInfo');
-  const userEmailEl = document.getElementById('userEmail');
-  if (!loginBtn || !userInfo) return;
-
-  if (currentUser) {
-    loginBtn.style.display = 'none';
-    userInfo.style.display = 'flex';
-    if (userEmailEl) userEmailEl.textContent = currentUser.email;
-  } else {
-    loginBtn.style.display = 'block';
-    userInfo.style.display = 'none';
-  }
+// ── Toast ─────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  if (toastTmr) clearTimeout(toastTmr);
+  toastTmr = setTimeout(() => toast.classList.remove('show'), 2800);
 }
 
-// ──────────── Audio ────────────
-function getAudioCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  return audioCtx;
-}
-function playTick(freq = 880, dur = 0.07) {
-  if (!soundEnabled) return;
-  try {
-    const ac = getAudioCtx();
-    const osc = ac.createOscillator();
-    const gain = ac.createGain();
-    osc.connect(gain); gain.connect(ac.destination);
-    osc.frequency.value = freq;
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.18, ac.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
-    osc.start(ac.currentTime);
-    osc.stop(ac.currentTime + dur);
-  } catch {}
+// ── Form feedback ─────────────────────────────────────────────────────────
+function showForm(msg, type) {
+  formBadge.textContent = msg;
+  formBadge.className = `form-badge show ${type}`;
+  if (formTmr) clearTimeout(formTmr);
+  formTmr = setTimeout(() => formBadge.classList.remove('show'), 2400);
 }
 
-// ──────────── Confetti ────────────
-let confettiParticles = [];
+// ── Confetti ──────────────────────────────────────────────────────────────
 function launchConfetti() {
-  const W = confettiCanvas.width = window.innerWidth;
-  const H = confettiCanvas.height = window.innerHeight;
-  const colors = ['#00e682','#00b5ff','#ff6b3d','#ffd166','#fff'];
-  confettiParticles = Array.from({length:120}, () => ({
-    x: Math.random() * W, y: -10,
-    vx: (Math.random() - 0.5) * 4,
-    vy: Math.random() * 3 + 2,
-    r: Math.random() * 6 + 3,
-    c: colors[Math.floor(Math.random()*colors.length)],
-    angle: Math.random() * Math.PI * 2,
-    spin: (Math.random() - 0.5) * 0.2,
-    alpha: 1,
+  confettiC.width = innerWidth; confettiC.height = innerHeight;
+  const cols = ['#00e682','#00b5ff','#ff6b3d','#ffd166','#ffffff'];
+  confParts = Array.from({length:110}, () => ({
+    x: Math.random()*innerWidth, y: -10,
+    vx: (Math.random()-.5)*4, vy: Math.random()*3+2,
+    r: Math.random()*6+3, a: Math.random()*Math.PI*2,
+    spin: (Math.random()-.5)*.2, alpha: 1,
+    c: cols[Math.floor(Math.random()*cols.length)],
   }));
   animateConfetti();
 }
 function animateConfetti() {
-  if (!confettiParticles.length) return;
-  const cc = confettiCanvas.getContext('2d');
-  cc.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
-  confettiParticles = confettiParticles.filter(p => p.alpha > 0.01);
-  confettiParticles.forEach(p => {
-    p.x += p.vx; p.y += p.vy; p.angle += p.spin;
-    if (p.y > confettiCanvas.height * 0.6) p.alpha -= 0.025;
-    cc.save();
-    cc.globalAlpha = p.alpha;
-    cc.fillStyle = p.c;
-    cc.translate(p.x, p.y);
-    cc.rotate(p.angle);
-    cc.fillRect(-p.r/2, -p.r/2, p.r, p.r*0.6);
+  if (!confParts.length) return;
+  const cc = confettiC.getContext('2d');
+  cc.clearRect(0,0,confettiC.width,confettiC.height);
+  confParts = confParts.filter(p => p.alpha > 0.01);
+  confParts.forEach(p => {
+    p.x+=p.vx; p.y+=p.vy; p.a+=p.spin;
+    if (p.y > confettiC.height*.6) p.alpha -= .02;
+    cc.save(); cc.globalAlpha=p.alpha; cc.fillStyle=p.c;
+    cc.translate(p.x,p.y); cc.rotate(p.a);
+    cc.fillRect(-p.r/2,-p.r/2,p.r,p.r*.55);
     cc.restore();
   });
-  if (confettiParticles.length) requestAnimationFrame(animateConfetti);
-  else cc.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+  if (confParts.length) requestAnimationFrame(animateConfetti);
+  else cc.clearRect(0,0,confettiC.width,confettiC.height);
 }
 
-// ──────────── Milestone ────────────
-let milestoneTimer = null;
-function checkMilestone(reps) {
-  for (const m of MILESTONES) {
-    if (reps >= m && !milestonesHit.has(m)) {
-      milestonesHit.add(m);
-      showMilestone(MILESTONE_MSGS[m]);
-      if (m === 100) launchConfetti();
-      playTick(1200, 0.15);
-      break;
+// ── Audio ─────────────────────────────────────────────────────────────────
+function getAC() { if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+function beep(freq=880,dur=.07) {
+  if (!soundOn) return;
+  try {
+    const ac=getAC(), o=ac.createOscillator(), g=ac.createGain();
+    o.connect(g); g.connect(ac.destination);
+    o.frequency.value=freq; o.type='sine';
+    g.gain.setValueAtTime(.16,ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+dur);
+    o.start(ac.currentTime); o.stop(ac.currentTime+dur);
+  } catch {}
+}
+
+// ── Ring ──────────────────────────────────────────────────────────────────
+function updateRing(n) {
+  ringFg.style.strokeDashoffset = RING_CIRC*(1-Math.min(n/dailyGoal,1));
+}
+
+// ── Rep bump ──────────────────────────────────────────────────────────────
+function bumpRep() {
+  repN.classList.add('bump');
+  if (bumpTmr) clearTimeout(bumpTmr);
+  bumpTmr = setTimeout(() => repN.classList.remove('bump'), 240);
+  repFlash.classList.add('show');
+  setTimeout(() => repFlash.classList.remove('show'), 110);
+  const r = document.createElement('div');
+  r.className = 'ripple-el';
+  ringWrap.appendChild(r);
+  setTimeout(() => r.remove(), 750);
+  beep(660,.07);
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────
+function updateStats() {
+  const cal  = Math.floor(reps/7);
+  const pct  = Math.min((reps/dailyGoal)*100,100)+'%';
+  const frac = `${reps} / ${dailyGoal}`;
+  const time = fmt(elapsed());
+
+  ovTimer.textContent = time; ovCal.textContent = cal;
+  ovGoalFill.style.width = pct; ovGoalTxt.textContent = frac;
+  if (dTimer)    dTimer.textContent      = time;
+  if (dCal)      dCal.textContent        = cal;
+  if (dGoalFill) dGoalFill.style.width   = pct;
+  if (dGoalTxt)  dGoalTxt.textContent    = frac;
+}
+
+// ── Milestones ────────────────────────────────────────────────────────────
+function checkMS(n) {
+  for (const [m,msg] of Object.entries(MILESTONES)) {
+    if (n >= +m && !msHit.has(+m)) {
+      msHit.add(+m); showToast(msg);
+      if (+m===100) launchConfetti();
+      beep(1200,.13); break;
     }
   }
-  // Goal completion
-  if (reps >= dailyGoal && !goalCompleted) {
-    goalCompleted = true;
-    launchConfetti();
-    showMilestone('🎯 Daily goal reached!');
-  }
-}
-function showMilestone(msg) {
-  milestoneToast.textContent = msg;
-  milestoneToast.classList.add('show');
-  if (milestoneTimer) clearTimeout(milestoneTimer);
-  milestoneTimer = setTimeout(() => milestoneToast.classList.remove('show'), 2800);
-}
-
-// ──────────── Form feedback ────────────
-let formBadgeTimer = null;
-function showFormFeedback(msg, type = 'good') {
-  formBadge.textContent = msg;
-  formBadge.className = `form-badge visible ${type}`;
-  if (formBadgeTimer) clearTimeout(formBadgeTimer);
-  formBadgeTimer = setTimeout(() => formBadge.classList.remove('visible'), 2500);
-}
-
-// ──────────── Rep ring ────────────
-const RING_CIRCUMFERENCE = 2 * Math.PI * 56;
-function updateRing(reps) {
-  const pct = Math.min(reps / dailyGoal, 1);
-  const offset = RING_CIRCUMFERENCE * (1 - pct);
-  repRingFg.style.strokeDashoffset = offset;
-}
-
-// ──────────── Rep animation ────────────
-let bumpTimer = null;
-function bumpRepCount() {
-  repCountEl.classList.add('bump');
-  if (bumpTimer) clearTimeout(bumpTimer);
-  bumpTimer = setTimeout(() => repCountEl.classList.remove('bump'), 250);
-
-  // Flash
-  repFlash.classList.add('show');
-  setTimeout(() => repFlash.classList.remove('show'), 120);
-
-  // Ripple
-  const ripple = document.createElement('div');
-  ripple.className = 'ripple-el';
-  document.querySelector('.rep-ring-wrap').appendChild(ripple);
-  setTimeout(() => ripple.remove(), 750);
-
-  playTick(660, 0.08);
-}
-
-// ──────────── Session timer ────────────
-function getElapsed() {
-  if (!sessionRunning) return sessionDurationMs;
-  if (sessionPaused) return sessionDurationMs;
-  return sessionDurationMs + (performance.now() - sessionStartTime);
-}
-
-function updateTimerDisplay() {
-  const elapsed = getElapsed();
-  const fmt = formatTime(elapsed);
-  if (sessionTimerEl) sessionTimerEl.textContent = fmt;
-  mobileTimer.textContent = fmt;
-}
-
-function updateStats() {
-  const cal = Math.floor(repCount / 7);
-  const pct = Math.min((repCount / dailyGoal) * 100, 100);
-  const fraction = `${repCount} / ${dailyGoal}`;
-
-  // Mobile overlay
-  mobileCal.textContent = cal;
-  goalProgressFillEl.style.width = pct + '%';
-  goalFractionEl.textContent = fraction;
-
-  // Desktop panel
-  if (calDisplayEl) calDisplayEl.textContent = cal;
-  if (goalProgressFillDesktop) goalProgressFillDesktop.style.width = pct + '%';
-  if (goalFractionDesktop) goalFractionDesktop.textContent = fraction;
-}
-
-// ──────────── Inactivity detection ────────────
-function resetInactivityTimer() {
-  lastActiveAt = performance.now();
-  if (inactivityPauseTimer) clearTimeout(inactivityPauseTimer);
-  if (sessionRunning && !sessionPaused) {
-    inactivityPauseTimer = setTimeout(() => {
-      if (sessionRunning && !sessionPaused) pauseSession();
-    }, INACTIVITY_PAUSE_MS);
+  if (n >= dailyGoal && !goalDone) {
+    goalDone = true; launchConfetti(); showToast('🎯 Daily goal reached!');
   }
 }
 
-// ──────────── Core detection ────────────
-function processJumpingJacks(landmarks) {
-  if (!sessionRunning || sessionPaused) return;
+// ── Inactivity ────────────────────────────────────────────────────────────
+function resetInact() {
+  if (inactTimer) clearTimeout(inactTimer);
+  if (running && !paused) inactTimer = setTimeout(() => { if (running&&!paused) pauseSession(); }, INACT_MS);
+}
 
-  const lArm = bestOf(landmarks, [15, 13]);
-  const rArm = bestOf(landmarks, [16, 14]);
-  const lLeg = bestOf(landmarks, [27, 25]);
-  const rLeg = bestOf(landmarks, [28, 26]);
-  const lHip = landmarks[23];
-  const rHip = landmarks[24];
-  const lShoulder = landmarks[11];
-  const rShoulder = landmarks[12];
-  const nose = landmarks[0];
+// ── Canvas ────────────────────────────────────────────────────────────────
+function resizeCv() {
+  const w=vid.videoWidth, h=vid.videoHeight;
+  if (!w||!h) return;
+  if (poseCv.width!==w)  poseCv.width=w;
+  if (poseCv.height!==h) poseCv.height=h;
+}
+function clearCv() { if (poseCv.width&&poseCv.height) poseCtx.clearRect(0,0,poseCv.width,poseCv.height); }
 
-  if (!lArm || !rArm || !lLeg || !rLeg) return;
+// ── Detection ─────────────────────────────────────────────────────────────
+function processJacks(lm) {
+  if (!running||paused) return;
+
+  const lArm=best(lm,[15,13]), rArm=best(lm,[16,14]);
+  const lLeg=best(lm,[27,25]), rLeg=best(lm,[28,26]);
+  if (!lArm||!rArm||!lLeg||!rLeg) return;
+
+  const lHip=lm[23], rHip=lm[24], lSho=lm[11], rSho=lm[12], nose=lm[0];
 
   let base = null;
-  if (validPoint(lHip) && validPoint(rHip)) base = hypot2(lHip.x, lHip.y, rHip.x, rHip.y);
-  else if (validPoint(lShoulder) && validPoint(rShoulder)) base = hypot2(lShoulder.x, lShoulder.y, rShoulder.x, rShoulder.y);
-  base = Math.max(base ?? 0.25, 0.10);
+  if (valid(lHip)&&valid(rHip))     base = Math.hypot(lHip.x-rHip.x, lHip.y-rHip.y);
+  else if (valid(lSho)&&valid(rSho)) base = Math.hypot(lSho.x-rSho.x, lSho.y-rSho.y);
+  base = Math.max(base??0.25, 0.10);
 
-  const legDist = hypot2(lLeg.x, lLeg.y, rLeg.x, rLeg.y);
-  const legsRatio = legDist / base;
+  const legDist  = Math.hypot(lLeg.x-rLeg.x, lLeg.y-rLeg.y);
+  const legRatio = legDist/base;
 
   let refY = null;
-  if (validPoint(nose)) refY = nose.y;
-  if (validPoint(lShoulder)) refY = (refY == null) ? lShoulder.y : Math.min(refY, lShoulder.y);
-  if (validPoint(rShoulder)) refY = (refY == null) ? rShoulder.y : Math.min(refY, rShoulder.y);
-  if (refY == null) refY = 0.4;
+  if (valid(nose)) refY = nose.y;
+  if (valid(lSho)) refY = refY==null ? lSho.y : Math.min(refY,lSho.y);
+  if (valid(rSho)) refY = refY==null ? rSho.y : Math.min(refY,rSho.y);
+  if (refY==null)  refY = 0.4;
 
-  const armsY = (lArm.y + rArm.y) / 2;
-  const up = refY - armsY;
+  const armsY = (lArm.y+rArm.y)/2;
+  const up    = refY - armsY;
 
-  legsRatioEma = ema(legsRatioEma, legsRatio, EMA_ALPHA);
-  upEma = ema(upEma, up, EMA_ALPHA);
+  legsEma = ema(legsEma, legRatio, EMA_A);
+  upEma   = ema(upEma,   up,       EMA_A);
 
-  const openPose = (legsRatioEma >= JACK_OPEN_LEGS_RATIO) && (upEma >= JACK_UP_OPEN);
-  const closedPose = (legsRatioEma <= JACK_CLOSED_LEGS_RATIO) && (upEma <= JACK_UP_CLOSED);
+  const isOpen   = legsEma>=OPEN_LEGS   && upEma>=OPEN_UP;
+  const isClosed = legsEma<=CLOSED_LEGS && upEma<=CLOSED_UP;
 
   // Phase dots
-  phaseDotOpen.className = 'phase-dot' + (openPose ? ' open' : '');
-  phaseDotClosed.className = 'phase-dot' + (closedPose ? ' closed' : '');
+  if (dotOp) dotOp.className = 'phase-dot'+(isOpen   ? ' op':'');
+  if (dotCl) dotCl.className = 'phase-dot'+(isClosed ? ' cl':'');
 
-  // Confidence proxy
-  const poseConf = Math.min(100, Math.round(legsRatioEma * 50));
-  const detConf = Math.min(100, Math.round(Math.abs(upEma) * 2000));
-  confPose.style.width = poseConf + '%';
-  confDet.style.width = detConf + '%';
-  confPosePct.textContent = poseConf + '%';
-  confDetPct.textContent = detConf + '%';
+  // Confidence bars
+  const pc = Math.min(100,Math.round(legsEma*50));
+  const dc = Math.min(100,Math.round(Math.abs(upEma)*2000));
+  if (confP) { confP.style.width=pc+'%'; confPPct.textContent=pc+'%'; }
+  if (confD) { confD.style.width=dc+'%'; confDPct.textContent=dc+'%'; }
 
-  // Form feedback
-  if (openPose && upEma < JACK_UP_OPEN * 1.5) {
-    showFormFeedback('Arms higher! 🙌', 'warn');
+  // Form hint
+  if (isOpen && upEma<OPEN_UP*1.4) showForm('Arms higher! 🙌','warn');
+
+  if (isOpen) { openFrames++; notOpenF=0; }
+  else        { notOpenF++;   openFrames=0; if (notOpenF>=2) openLatched=false; }
+
+  const now=performance.now();
+  if (openFrames>=OPEN_STREAK && !openLatched && (now-lastRepTs)>=COOLDOWN_MS) {
+    reps++; lastRepTs=now; openLatched=true;
+    repN.textContent=reps;
+    bumpRep(); updateRing(reps); updateStats(); checkMS(reps);
+    resetInact(); silhouette.classList.add('hide');
   }
-
-  if (openPose) {
-    openFrames++;
-    notOpenFrames = 0;
-  } else {
-    notOpenFrames++;
-    openFrames = 0;
-    if (notOpenFrames >= 2) openLatched = false;
-  }
-
-  const now = performance.now();
-  if (openFrames >= JACK_OPEN_STREAK_FRAMES && !openLatched && (now - lastRepAt) >= JACK_REP_COOLDOWN_MS) {
-    repCount++;
-    lastRepAt = now;
-    openLatched = true;
-    repTimestamps.push(now);
-    resetInactivityTimer();
-
-    repCountEl.textContent = String(repCount);
-    bumpRepCount();
-    updateRing(repCount);
-    updateStats();
-    checkMilestone(repCount);
-    silhouetteGuide.classList.add('hidden'); // hide once detected
-  }
-
-  if (openPose) phase = 'open';
-  else if (closedPose) phase = 'closed';
-
-  // Lighting detection (rough proxy: check if image is dark)
-  // We do this via a small canvas sample
 }
 
-// ──────────── Lighting check ────────────
-let lightingCheckInterval = null;
-function startLightingCheck() {
-  if (lightingCheckInterval) clearInterval(lightingCheckInterval);
-  lightingCheckInterval = setInterval(() => {
-    if (!video.videoWidth) return;
-    const tmpCanvas = document.createElement('canvas');
-    tmpCanvas.width = 32; tmpCanvas.height = 18;
-    const tCtx = tmpCanvas.getContext('2d');
-    tCtx.drawImage(video, 0, 0, 32, 18);
-    const data = tCtx.getImageData(0, 0, 32, 18).data;
-    let sum = 0;
-    for (let i = 0; i < data.length; i += 4) sum += (data[i] + data[i+1] + data[i+2]) / 3;
-    const avg = sum / (data.length / 4);
-    lightingWarn.classList.toggle('show', avg < 35);
+// ── Lighting ──────────────────────────────────────────────────────────────
+function startLighting() {
+  if (lightTimer) clearInterval(lightTimer);
+  lightTimer = setInterval(() => {
+    if (!vid.videoWidth) return;
+    const c=document.createElement('canvas'); c.width=32; c.height=18;
+    const x=c.getContext('2d'); x.drawImage(vid,0,0,32,18);
+    const d=x.getImageData(0,0,32,18).data;
+    let s=0; for (let i=0;i<d.length;i+=4) s+=(d[i]+d[i+1]+d[i+2])/3;
+    lightWarn.classList.toggle('show', s/(d.length/4)<35);
   }, 3000);
 }
 
-// ──────────── Pose loop ────────────
+// ── Pose loop ─────────────────────────────────────────────────────────────
 function loop(now) {
-  if (!webcamRunning) return;
-  if (now - lastInferAt >= MIN_INFER_MS && video.readyState >= 2) {
-    lastInferAt = now;
-    poseLandmarker.detectForVideo(video, now, (result) => {
-      if (!result?.landmarks?.length) {
-        clearCanvas();
-        return;
-      }
-      const person = result.landmarks[0];
-      if (showSkeleton) {
-        resizeCanvas();
-        clearCanvas();
-        drawingUtils.drawLandmarks(person, { radius: 3 });
-        drawingUtils.drawConnectors(person, PoseLandmarker.POSE_CONNECTIONS);
-      } else {
-        clearCanvas();
-      }
-      processJumpingJacks(person);
+  if (!webcamOn) return;
+  if ((now-lastInfer)>=MIN_FRAME_MS && vid.readyState>=2) {
+    lastInfer=now;
+    poseLM.detectForVideo(vid, now, res => {
+      if (!res?.landmarks?.length) { clearCv(); return; }
+      const p=res.landmarks[0];
+      if (showSkel) { resizeCv(); clearCv(); drawU.drawLandmarks(p,{radius:3}); drawU.drawConnectors(p,PoseLandmarker.POSE_CONNECTIONS); }
+      else clearCv();
+      processJacks(p);
     });
   }
-  if (sessionRunning && !sessionPaused) updateTimerDisplay();
+  if (running&&!paused) updateStats();
   rafId = requestAnimationFrame(loop);
 }
 
-function resizeCanvas() {
-  const w = video.videoWidth, h = video.videoHeight;
-  if (!w || !h) return;
-  if (overlayCanvas.width !== w) overlayCanvas.width = w;
-  if (overlayCanvas.height !== h) overlayCanvas.height = h;
-}
-function clearCanvas() {
-  if (overlayCanvas.width && overlayCanvas.height) ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-}
-
-// ──────────── Camera ────────────
-async function startCamera() {
-  const constraints = {
-    video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } },
+// ── Camera ────────────────────────────────────────────────────────────────
+async function startCam() {
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode:'user', width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:30,max:30} },
     audio: false,
-  };
-  stream = await navigator.mediaDevices.getUserMedia(constraints);
-  video.srcObject = stream;
-  await new Promise(r => { video.onloadedmetadata = () => r(); });
-  try { await video.play(); } catch {}
-  video.classList.add('ready');
-  webcamRunning = true;
-  startLightingCheck();
-  resizeCanvas(); clearCanvas();
+  });
+  vid.srcObject = stream;
+  await new Promise(r => { vid.onloadedmetadata=r; });
+  await vid.play().catch(()=>{});
+  vid.classList.add('on');
+  webcamOn=true; startLighting(); resizeCv(); clearCv();
   if (rafId) cancelAnimationFrame(rafId);
   rafId = requestAnimationFrame(loop);
 }
-
-function stopCamera() {
-  webcamRunning = false;
-  if (rafId) cancelAnimationFrame(rafId);
-  rafId = null;
-  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-  video.srcObject = null;
-  video.classList.remove('ready');
-  if (lightingCheckInterval) clearInterval(lightingCheckInterval);
-  clearCanvas();
+function stopCam() {
+  webcamOn=false;
+  if (rafId) cancelAnimationFrame(rafId); rafId=null;
+  if (stream) { stream.getTracks().forEach(t=>t.stop()); stream=null; }
+  vid.srcObject=null; vid.classList.remove('on');
+  if (lightTimer) clearInterval(lightTimer);
+  clearCv();
 }
 
-// ──────────── Session control ────────────
+// ── Countdown ─────────────────────────────────────────────────────────────
 async function doCountdown() {
-  countdownOverlay.classList.remove('hidden');
-  for (const n of [3, 2, 1, 'GO!']) {
-    countdownNum.textContent = n;
-    countdownNum.style.animation = 'none';
-    countdownNum.offsetHeight; // reflow
-    countdownNum.style.animation = '';
-    await new Promise(r => setTimeout(r, 900));
+  countdown.classList.remove('hide');
+  for (const n of [3,2,1,'GO!']) {
+    cdN.textContent=n;
+    cdN.style.animation='none'; cdN.offsetHeight; cdN.style.animation='';
+    await new Promise(r=>setTimeout(r,880));
   }
-  countdownOverlay.classList.add('hidden');
+  countdown.classList.add('hide');
+}
+
+// ── Session control ───────────────────────────────────────────────────────
+function syncBtns() {
+  const lbl = running ? '■ Stop' : '▶ Start';
+  const stop = running;
+  const pd   = paused;
+
+  startStopBtn.textContent = lbl;
+  startStopBtn.className   = 'ov-start'+(stop?' stop':'');
+  pauseBtn.textContent = pd ? '▶' : '⏸';
+  pauseBtn.disabled    = !running;
+
+  if (dStartStop) { dStartStop.textContent=lbl; dStartStop.className='d-btn pri'+(stop?' stop':''); }
+  if (dPause)     { dPause.textContent=pd?'▶ Resume':'⏸ Pause'; dPause.disabled=!running; }
 }
 
 async function startSession() {
-  resetSession(false);
+  resetState();
   showScreen('screen-workout');
-  sessionRunning = true;
-  syncButtons();
-
+  running=true; syncBtns();
   try {
-    await startCamera();
+    await startCam();
     await doCountdown();
-    sessionStartTime = performance.now();
-    sessionDurationMs = 0;
-    resetInactivityTimer();
-  } catch (e) {
-    sessionRunning = false;
-    syncButtons();
-    stopCamera();
-    document.getElementById('errorMsg').textContent = `${e?.message || e}\n\nTips:\n• Use HTTPS or localhost\n• Allow camera permission\n• Close other camera apps\n• Improve lighting`;
+    startTs=performance.now(); elapsedMs=0;
+    resetInact();
+  } catch(e) {
+    running=false; syncBtns(); stopCam();
+    $('errMsg').textContent=`${e?.message||e}\n\nTips:\n• Use HTTPS or localhost\n• Allow camera permission\n• Close other apps using camera\n• Improve lighting`;
     showScreen('screen-error');
   }
 }
-
 function pauseSession() {
-  if (!sessionRunning || sessionPaused) return;
-  sessionPaused = true;
-  sessionDurationMs += performance.now() - sessionStartTime;
-  pauseStartTime = performance.now();
-  syncButtons();
-  if (inactivityPauseTimer) clearTimeout(inactivityPauseTimer);
-  showMilestone('⏸ Session paused');
+  if (!running||paused) return;
+  paused=true; elapsedMs+=performance.now()-startTs;
+  syncBtns(); if (inactTimer) clearTimeout(inactTimer);
+  showToast('⏸ Paused');
 }
-
 function resumeSession() {
-  if (!sessionPaused) return;
-  sessionPaused = false;
-  sessionStartTime = performance.now();
-  syncButtons();
-  resetInactivityTimer();
+  if (!paused) return;
+  paused=false; startTs=performance.now();
+  syncBtns(); resetInact();
 }
-
 function stopSession() {
-  if (!sessionRunning) return;
-  if (!sessionPaused) sessionDurationMs += performance.now() - sessionStartTime;
-  sessionRunning = false;
-  sessionPaused = false;
-  if (inactivityPauseTimer) clearTimeout(inactivityPauseTimer);
-  stopCamera();
-  showSummary();
+  if (!running) return;
+  if (!paused) elapsedMs+=performance.now()-startTs;
+  running=false; paused=false;
+  if (inactTimer) clearTimeout(inactTimer);
+  stopCam(); showSummary();
+}
+function resetState() {
+  reps=0; legsEma=null; upEma=null;
+  openFrames=0; notOpenF=0; openLatched=false; lastRepTs=0;
+  running=false; paused=false; elapsedMs=0;
+  msHit.clear(); goalDone=false;
+
+  repN.textContent='0'; updateRing(0);
+  ovTimer.textContent='0:00'; ovCal.textContent='0';
+  ovGoalFill.style.width='0%'; ovGoalTxt.textContent=`0 / ${dailyGoal}`;
+  if (dTimer)    dTimer.textContent='0:00';
+  if (dCal)      dCal.textContent='0';
+  if (dGoalFill) dGoalFill.style.width='0%';
+  if (dGoalTxt)  dGoalTxt.textContent=`0 / ${dailyGoal}`;
+  if (dotOp)  dotOp.className='phase-dot';
+  if (dotCl)  dotCl.className='phase-dot';
+  if (confP)  { confP.style.width='0%'; confPPct.textContent='—'; }
+  if (confD)  { confD.style.width='0%'; confDPct.textContent='—'; }
+  silhouette.classList.remove('hide');
+  syncBtns();
 }
 
-function resetSession(full = true) {
-  repCount = 0; phase = 'unknown';
-  legsRatioEma = null; upEma = null;
-  openFrames = 0; notOpenFrames = 0; openLatched = false; lastRepAt = 0;
-  repTimestamps = [];
-  sessionRunning = false; sessionPaused = false;
-  sessionDurationMs = 0;
-  milestonesHit.clear();
-  goalCompleted = false;
+// ── Summary ───────────────────────────────────────────────────────────────
+async function showSummary() {
+  const r=reps, dur=fmt(elapsedMs), cal=Math.floor(r/7);
+  const streak = await saveStreak();
+  saveLB(r,dur,cal);
 
-  repCountEl.textContent = '0';
-  updateRing(0);
-  mobileTimer.textContent = '0:00';
-  mobileCal.textContent = '0';
-  goalProgressFillEl.style.width = '0%';
-  goalFractionEl.textContent = `0 / ${dailyGoal}`;
-  if (sessionTimerEl) sessionTimerEl.textContent = '0:00';
-  if (calDisplayEl) calDisplayEl.textContent = '0';
-  if (goalProgressFillDesktop) goalProgressFillDesktop.style.width = '0%';
-  if (goalFractionDesktop) goalFractionDesktop.textContent = `0 / ${dailyGoal}`;
-  if (phaseDotOpen) phaseDotOpen.className = 'phase-dot';
-  if (phaseDotClosed) phaseDotClosed.className = 'phase-dot';
-  if (confPose) { confPose.style.width = '0%'; confPosePct.textContent = '—'; }
-  if (confDet) { confDet.style.width = '0%'; confDetPct.textContent = '—'; }
-  silhouetteGuide.classList.remove('hidden');
-  syncButtons();
-}
+  $('sumReps').textContent=r;
+  $('sumTime').textContent=dur;
+  $('sumCal').textContent=cal;
 
-// ──────────── Summary ────────────
-function showSummary() {
-  const reps = repCount;
-  const elapsed = sessionDurationMs;
-  const cal = Math.floor(reps / 7);
-  const streak = saveStreak();
-  saveLeaderboard(reps, formatTime(elapsed), cal);
+  let e='💪', t='Workout Complete!', s='Great effort!';
+  if      (r>=dailyGoal) { e='🏆'; t='Goal Crushed!';      s=`${streak}-day streak! Incredible!`; }
+  else if (r>=50)        { e='🔥'; t='On Fire!';           s='Impressive session!'; }
+  else if (r>=20)        { e='👏'; t='Nice Work!';         s='Keep building that habit!'; }
+  else if (r>0)          { e='🌱'; t='Good Start!';        s='Every rep counts!'; }
+  else                   { e='😅'; t='See You Next Time!'; s='Tomorrow is a new day!'; }
 
-  document.getElementById('sumReps').textContent = reps;
-  document.getElementById('sumTime').textContent = formatTime(elapsed);
-  document.getElementById('sumCal').textContent = cal;
-
-  // Dynamic messaging
-  let emoji = '💪', title = 'Workout Complete!', sub = 'Great effort!';
-  if (reps >= dailyGoal) { emoji = '🏆'; title = 'Goal Crushed!'; sub = `${streak}-day streak! You're incredible!`; }
-  else if (reps >= 50) { emoji = '🔥'; title = 'On Fire!'; sub = 'Impressive session!'; }
-  else if (reps >= 20) { emoji = '👏'; title = 'Nice Work!'; sub = 'Keep building that habit!'; }
-  else if (reps > 0) { emoji = '🌱'; title = 'Good Start!'; sub = 'Every rep counts!'; }
-  else { emoji = '😅'; title = 'See You Next Time!'; sub = 'Tomorrow is a new day!'; }
-
-  document.getElementById('summaryEmoji').textContent = emoji;
-  document.getElementById('summaryTitle').textContent = title;
-  document.getElementById('summarySubtitle').textContent = sub;
-
-  if (reps >= dailyGoal) launchConfetti();
+  $('sumEmoji').textContent=e;
+  $('sumTitle').textContent=t;
+  $('sumSub').textContent=s;
+  if (r>=dailyGoal) launchConfetti();
   showScreen('screen-summary');
 }
 
-// ──────────── Share / Copy ────────────
+// ── Share ─────────────────────────────────────────────────────────────────
 function copyStats() {
-  const reps = document.getElementById('sumReps').textContent;
-  const time = document.getElementById('sumTime').textContent;
-  const cal = document.getElementById('sumCal').textContent;
-  const text = `🏋️ JUSTIFY Workout\n${reps} reps · ${time} · ${cal} kcal\njustify.app`;
-  navigator.clipboard?.writeText(text).then(() => showMilestone('📋 Copied to clipboard!'));
+  const r=$('sumReps').textContent, t=$('sumTime').textContent, c=$('sumCal').textContent;
+  navigator.clipboard?.writeText(`🏋️ JUSTIFY Workout\n${r} reps · ${t} · ${c} kcal\njustify.app`)
+    .then(()=>showToast('📋 Copied!'));
 }
-
-async function shareResults() {
-  const c = document.getElementById('share-canvas');
-  c.width = 800; c.height = 450;
-  const cc = c.getContext('2d');
-  // Background
-  const grad = cc.createLinearGradient(0, 0, 800, 450);
-  grad.addColorStop(0, '#080c14'); grad.addColorStop(1, '#0e1421');
-  cc.fillStyle = grad; cc.fillRect(0, 0, 800, 450);
-  // Accent line
-  const lg = cc.createLinearGradient(0,0,800,0);
+function downloadCard() {
+  const cv=$('share-cv'); cv.width=800; cv.height=420;
+  const cc=cv.getContext('2d');
+  const bg=cc.createLinearGradient(0,0,800,420);
+  bg.addColorStop(0,'#080c14'); bg.addColorStop(1,'#0d1320');
+  cc.fillStyle=bg; cc.fillRect(0,0,800,420);
+  const lg=cc.createLinearGradient(0,0,800,0);
   lg.addColorStop(0,'#00e682'); lg.addColorStop(1,'#00b5ff');
-  cc.fillStyle = lg; cc.fillRect(0, 0, 800, 5);
-  // Title
-  cc.fillStyle = '#e8f0fc'; cc.font = 'bold 72px Barlow Condensed, sans-serif';
-  cc.fillText('JUSTIFY', 60, 100);
-  cc.fillStyle = '#7a8ba8'; cc.font = '18px Barlow, sans-serif';
-  cc.fillText('Earn Your Screen Time', 60, 130);
-  // Stats
-  const stats = [
-    { val: document.getElementById('sumReps').textContent, lbl: 'REPS', color: '#00e682', x: 60 },
-    { val: document.getElementById('sumTime').textContent, lbl: 'TIME', color: '#00b5ff', x: 260 },
-    { val: document.getElementById('sumCal').textContent, lbl: 'KCAL', color: '#ffd166', x: 460 },
-  ];
-  stats.forEach(s => {
-    cc.fillStyle = s.color; cc.font = 'bold 60px Barlow Condensed, sans-serif';
-    cc.fillText(s.val, s.x, 260);
-    cc.fillStyle = '#4a5a72'; cc.font = '600 13px Barlow, sans-serif';
-    cc.fillText(s.lbl, s.x, 285);
+  cc.fillStyle=lg; cc.fillRect(0,0,800,4);
+  cc.fillStyle='#e8f0fc'; cc.font='bold 66px "Barlow Condensed",sans-serif'; cc.fillText('JUSTIFY',60,92);
+  cc.fillStyle='#7a8ba8'; cc.font='16px Barlow,sans-serif'; cc.fillText('Earn Your Screen Time',60,118);
+  [
+    {val:$('sumReps').textContent, lbl:'REPS',     col:'#00e682', x:60 },
+    {val:$('sumTime').textContent, lbl:'TIME',     col:'#00b5ff', x:268},
+    {val:$('sumCal').textContent,  lbl:'CALORIES', col:'#ffd166', x:476},
+  ].forEach(s=>{
+    cc.fillStyle=s.col; cc.font=`bold 56px "Barlow Condensed",sans-serif`; cc.fillText(s.val,s.x,248);
+    cc.fillStyle='#4a5a72'; cc.font='600 11px Barlow,sans-serif'; cc.fillText(s.lbl,s.x,268);
   });
-  // Footer
-  cc.fillStyle = '#4a5a72'; cc.font = '13px Barlow, sans-serif';
-  cc.fillText(new Date().toLocaleDateString('en-US', {weekday:'long',year:'numeric',month:'long',day:'numeric'}), 60, 420);
-
-  c.toBlob(blob => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'jack-workout.png';
-    a.click(); URL.revokeObjectURL(url);
+  cc.fillStyle='#3d4f68'; cc.font='12px Barlow,sans-serif';
+  cc.fillText(new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),60,398);
+  cv.toBlob(b=>{
+    const url=URL.createObjectURL(b), a=document.createElement('a');
+    a.href=url; a.download='justify-workout.png'; a.click(); URL.revokeObjectURL(url);
   });
 }
 
-// ──────────── Init ────────────
+// ── Init ──────────────────────────────────────────────────────────────────
 async function init() {
-  loadingBar.style.width = '20%';
-  loadingLabel.textContent = 'LOADING POSE ENGINE';
+  // Start auth immediately — non-blocking
+  initAuth();
 
-  // Auth first — non-blocking, runs in background
-  initAuth().catch(() => {});
-
-  dailyGoal = getStorage('justify_goal', 50);
-  dailyGoalInput.value = dailyGoal;
-  streakNum.textContent = loadStreakLocal();
+  ldBar.style.width='15%'; ldLbl.textContent='Loading pose engine…';
+  dailyGoal = lsGet('j_goal',50);
+  goalInput.value = dailyGoal;
+  streakNum.textContent = localStreak();
 
   try {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera not supported in this browser.');
-    loadingBar.style.width = '40%';
+    ldBar.style.width='35%';
 
-    const vision = await FilesetResolver.forVisionTasks(WASM_ROOT);
-    loadingBar.style.width = '70%';
-    loadingLabel.textContent = 'LOADING POSE MODEL';
+    const vision = await FilesetResolver.forVisionTasks(WASM);
+    ldBar.style.width='65%'; ldLbl.textContent='Loading pose model…';
 
-    let loaded = false;
-    for (const url of MODEL_URLS) {
+    let loaded=false;
+    for (const url of MODELS) {
       for (const delegate of ['GPU','CPU']) {
         try {
-          poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-            baseOptions: { modelAssetPath: url, delegate },
-            runningMode: 'VIDEO', numPoses: 1,
-            minPoseDetectionConfidence: 0.35,
-            minPosePresenceConfidence: 0.35,
-            minTrackingConfidence: 0.35,
+          poseLM = await PoseLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetPath:url, delegate },
+            runningMode:'VIDEO', numPoses:1,
+            minPoseDetectionConfidence:.35,
+            minPosePresenceConfidence:.35,
+            minTrackingConfidence:.35,
           });
-          drawingUtils = new DrawingUtils(ctx);
-          loaded = true; break;
+          drawU = new DrawingUtils(poseCtx);
+          loaded=true; break;
         } catch {}
       }
       if (loaded) break;
     }
-    if (!loaded) throw new Error('Failed to load pose model.');
+    if (!loaded) throw new Error('Could not load pose model.');
 
-    loadingBar.style.width = '100%';
-    loadingLabel.textContent = 'READY';
-    await new Promise(r => setTimeout(r, 400));
-    loadingOverlay.classList.add('gone');
+    ldBar.style.width='100%'; ldLbl.textContent='Ready!';
+    await new Promise(r=>setTimeout(r,350));
+    loading.classList.add('out');
     showScreen('screen-welcome');
-  } catch (e) {
-    loadingOverlay.classList.add('gone');
-    document.getElementById('errorMsg').textContent = String(e?.message || e);
+  } catch(e) {
+    loading.classList.add('out');
+    $('errMsg').textContent=String(e?.message||e);
     showScreen('screen-error');
   }
 }
 
-// ──────────── Events ────────────
-document.getElementById('loginBtn')?.addEventListener('click', signInWithGoogle);
-document.getElementById('logoutBtn')?.addEventListener('click', signOut);
-
-welcomeStartBtn.addEventListener('click', () => {
-  dailyGoal = Math.max(5, Math.min(500, parseInt(dailyGoalInput.value) || 50));
-  setStorage('justify_goal', dailyGoal);
-  startSession();
+// ── Events ────────────────────────────────────────────────────────────────
+loginBtn.addEventListener('click', () =>
+  sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: window.location.origin } })
+);
+logoutBtn.addEventListener('click', async () => {
+  await sb.auth.signOut();
+  currentUser=null; userProfile=null; updateAuthUI();
+  streakNum.textContent = localStreak();
+  dailyGoal = lsGet('j_goal',50); goalInput.value=dailyGoal;
 });
 
-dailyGoalInput.addEventListener('change', async () => {
-  dailyGoal = Math.max(5, Math.min(500, parseInt(dailyGoalInput.value) || 50));
-  setStorage('justify_goal', dailyGoal);
-  if (currentUser) {
-    await supabase.from('profiles').update({ goal: dailyGoal }).eq('id', currentUser.id);
-  }
+startBtn.addEventListener('click', () => {
+  dailyGoal = Math.max(5,Math.min(500,parseInt(goalInput.value)||50));
+  lsSet('j_goal',dailyGoal); startSession();
+});
+goalInput.addEventListener('change', async () => {
+  dailyGoal = Math.max(5,Math.min(500,parseInt(goalInput.value)||50));
+  lsSet('j_goal',dailyGoal);
+  if (currentUser) await sb.from('profiles').update({goal:dailyGoal}).eq('id',currentUser.id);
 });
 
-// Mobile overlay buttons
-startStopBtn.addEventListener('click', () => { if (sessionRunning) stopSession(); else startSession(); });
-pauseBtn.addEventListener('click', () => { if (sessionPaused) resumeSession(); else pauseSession(); });
-resetWorkoutBtn.addEventListener('click', () => { if (sessionRunning) stopCamera(); sessionRunning = false; sessionPaused = false; resetSession(); });
+// Mobile buttons
+startStopBtn.addEventListener('click', () => running ? stopSession() : startSession());
+pauseBtn.addEventListener('click',     () => paused  ? resumeSession() : pauseSession());
+resetBtn.addEventListener('click',     () => { if (running) stopCam(); resetState(); });
 
-// Desktop buttons (mirror mobile)
-startStopBtnD?.addEventListener('click', () => { if (sessionRunning) stopSession(); else startSession(); });
-pauseBtnD?.addEventListener('click', () => { if (sessionPaused) resumeSession(); else pauseSession(); });
-resetWorkoutBtnD?.addEventListener('click', () => { if (sessionRunning) stopCamera(); sessionRunning = false; sessionPaused = false; resetSession(); });
+// Desktop buttons
+dStartStop?.addEventListener('click', () => running ? stopSession() : startSession());
+dPause?.addEventListener('click',     () => paused  ? resumeSession() : pauseSession());
+dReset?.addEventListener('click',     () => { if (running) stopCam(); resetState(); });
 
-// Sound (mobile + desktop)
+// Sound (both buttons)
 function toggleSound() {
-  soundEnabled = !soundEnabled;
-  const icon = soundEnabled ? '🔊' : '🔇';
-  soundBtn.textContent = icon;
-  soundBtn.classList.toggle('active', soundEnabled);
-  if (soundBtnD) { soundBtnD.textContent = icon; soundBtnD.classList.toggle('active', soundEnabled); }
-  if (soundEnabled) { getAudioCtx(); playTick(440, 0.1); }
+  soundOn=!soundOn;
+  const ic=soundOn?'🔊':'🔇';
+  soundBtn.textContent=ic; soundBtn.classList.toggle('on',soundOn);
+  if (dSound) { dSound.textContent=ic; dSound.classList.toggle('on',soundOn); }
+  if (soundOn) { getAC(); beep(440,.1); }
 }
 soundBtn.addEventListener('click', toggleSound);
-soundBtnD?.addEventListener('click', toggleSound);
+dSound?.addEventListener('click',  toggleSound);
 
-skeletonToggle.addEventListener('click', () => {
-  showSkeleton = !showSkeleton;
-  skeletonToggle.classList.toggle('active', showSkeleton);
-  if (!showSkeleton) clearCanvas();
+// Skeleton
+skelBtn.addEventListener('click', () => {
+  showSkel=!showSkel;
+  skelBtn.classList.toggle('on',showSkel);
+  if (!showSkel) clearCv();
 });
 
-focusModeBtn?.addEventListener('click', () => {
-  isFocusMode = !isFocusMode;
-  document.body.classList.toggle('focus-mode', isFocusMode);
-  focusModeBtn.style.color = isFocusMode ? 'var(--accent)' : '';
+// Focus mode
+focusBtn?.addEventListener('click', () => {
+  focusMode=!focusMode;
+  document.body.classList.toggle('focus',focusMode);
+  focusBtn.style.color = focusMode ? 'var(--acc)' : '';
 });
 
-doAgainBtn.addEventListener('click', () => { resetSession(); startSession(); });
-homeBtn.addEventListener('click', () => { resetSession(); showScreen('screen-welcome'); streakNum.textContent = userProfile ? userProfile.streak : loadStreakLocal(); });
-shareBtn.addEventListener('click', shareResults);
-copyStatsBtn.addEventListener('click', copyStats);
-retryBtn.addEventListener('click', () => { showScreen('screen-welcome'); });
+// Summary actions
+doAgainBtn.addEventListener('click', () => { resetState(); startSession(); });
+homeBtn.addEventListener('click', () => {
+  resetState(); showScreen('screen-welcome');
+  streakNum.textContent = userProfile ? (userProfile.streak||0) : localStreak();
+});
+shareBtn.addEventListener('click', downloadCard);
+copyBtn.addEventListener('click',  copyStats);
+retryBtn.addEventListener('click', () => showScreen('screen-welcome'));
 
 // Leaderboard
-['showLeaderboard','showLeaderboard2','showLeaderboard3'].forEach(id => {
-  document.getElementById(id)?.addEventListener('click', () => { renderLeaderboard(); leaderboardPopup.classList.add('show'); });
+['lbBtnW','lbBtnP','lbBtnD'].forEach(id => {
+  $(id)?.addEventListener('click', () => { renderLB(); lbPopup.classList.add('show'); });
 });
-lbClose.addEventListener('click', () => leaderboardPopup.classList.remove('show'));
-leaderboardPopup.addEventListener('click', e => { if (e.target === leaderboardPopup) leaderboardPopup.classList.remove('show'); });
+lbX.addEventListener('click', () => lbPopup.classList.remove('show'));
+lbPopup.addEventListener('click', e => { if (e.target===lbPopup) lbPopup.classList.remove('show'); });
 
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
-  if (document.activeElement.tagName === 'INPUT') return;
-  switch (e.code) {
-    case 'Space': e.preventDefault(); if (sessionRunning) stopSession(); else startSession(); break;
-    case 'KeyP': if (sessionPaused) resumeSession(); else pauseSession(); break;
-    case 'KeyR': if (sessionRunning) stopCamera(); sessionRunning = false; sessionPaused = false; resetSession(); break;
-    case 'KeyS': toggleSound(); break;
-    case 'KeyF': focusModeBtn?.click(); break;
+  if (document.activeElement.tagName==='INPUT') return;
+  switch(e.code) {
+    case 'Space': e.preventDefault(); running?stopSession():startSession(); break;
+    case 'KeyP':  paused?resumeSession():pauseSession(); break;
+    case 'KeyR':  if(running)stopCam(); resetState(); break;
+    case 'KeyS':  toggleSound(); break;
+    case 'KeyF':  focusBtn?.click(); break;
   }
 });
 
+// Auto-pause on tab hide
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && sessionRunning && !sessionPaused) pauseSession();
+  if (document.hidden && running && !paused) pauseSession();
 });
 
 window.addEventListener('resize', () => {
-  confettiCanvas.width = window.innerWidth;
-  confettiCanvas.height = window.innerHeight;
+  confettiC.width=innerWidth; confettiC.height=innerHeight;
 });
 
 init();
