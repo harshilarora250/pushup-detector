@@ -1195,6 +1195,27 @@ const SUPABASE_URL = 'https://vkgqemxdvjsbiajhzlmu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrZ3FlbXhkdmpzYmlhamh6bG11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzMDk0MzQsImV4cCI6MjA4Nzg4NTQzNH0.maCKcwnmcEkKXf7mVqExQcVIBzhei18kZWdNHjL7qGI';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Detect OAuth redirect and clean URL
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_IN') {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+});
+```
+
+---
+
+**3. Also check your Supabase redirect URL setting**
+
+Go to Supabase → Authentication → URL Configuration and make sure **Site URL** is set to your Vercel URL:
+```
+https://yourapp.vercel.app
+```
+
+And under **Redirect URLs** add:
+```
+https://yourapp.vercel.app
+
 // ──────────── Constants ────────────
 const MODEL_URLS = [
   "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
